@@ -14,7 +14,7 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 1;
-const bool USE_HARDCODED_INPUT = 1;
+const bool USE_HARDCODED_INPUT = 0;
 
 const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
@@ -22,10 +22,16 @@ const int TREE_ROOT_NODE_DEPTH = 1;
 const int ZERO_CHAR = '0';
 const int INVALID_COORD = -1;
 const int DIRECTIONS_COUNT = 8;
+const int RIGHT_ANGLE = 90;
 
 const float MARS_GRAVITY = 3.711f;
 
 const float PI = 3.14159265f;
+
+enum ComponentType {
+	CT_HORIZONTAL = 0,
+	CT_VERTICAL,
+};
 
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
@@ -206,7 +212,18 @@ public:
 	void setRotate(int rotate) { this->rotate = rotate; }
 	void setPower(int power) { this->power = power; }
 
+	void calculateComponents(
+		int newAngle,
+		int newPower,
+		int initialSpeed,
+		ComponentType componentType,
+		float& displacement,
+		float& acceleration
+	);
+
 	void simulate(int rotateAngle, int thrustPower);
+
+	void print() const;
 
 private:
 	Coords position;
@@ -235,54 +252,63 @@ Shuttle::Shuttle() :
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-//def getNextState(lander : Lander, action : Action) : Lander = {
-//	var nextP = lander.power + action.power
-//	var nextFuel = lander.fuel - nextP
-//	var nextAngle = lander.angle + action.angle
-//	var nextX = 2 * lander.x - lander.prevX - nextP * sin(toRadians(nextAngle))
-//	var nextY = 2 * lander.y - lander.prevY - g + nextP * cos(toRadians(nextAngle))
-//	var nextVx = lander.hSpeed - nextP * sin(toRadians(nextAngle))
-//	var nextVy = lander.vSpeed - g + nextP * cos(toRadians(nextAngle))
-//	var nextLander = Lander(nextX, nextY, lander.x, lander.y, nextVx, nextVy, nextFuel, nextAngle, nextP)
-//	nextLander
-//}
+void Shuttle::calculateComponents(
+	int newAngle,
+	int newPower,
+	int initialSpeed,
+	ComponentType componentType,
+	float& displacement,
+	float& acceleration
+) {
+	int theta = RIGHT_ANGLE + newAngle;
+	float rad = theta * PI / (2 * RIGHT_ANGLE);
+
+	float mult = cos(rad);
+	if (CT_VERTICAL == componentType) {
+		mult = sin(rad);
+	}
+
+	acceleration = mult * (float)newPower;
+
+	if (CT_VERTICAL == componentType) {
+		acceleration -= MARS_GRAVITY;
+	}
+
+	displacement = (float)initialSpeed + (0.5 * acceleration);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
 
 void Shuttle::simulate(int rotateAngle, int thrustPower) {
-	// X = 2501m, Y = 2695m, HSpeed = 1m / s VSpeed = -5m / s
-	// Fuel = 548l, Angle = -15°, Power = 1 (1.0m / s2)
+	int newAngle = /*rotate +*/ rotateAngle;
+	int newPower = /*power +*/ thrustPower;
+	int newFuel = fuel - newPower; 
 
-	const float thetha = float(90 + rotateAngle) * PI / 180.f;
+	float displacementX = 0.f;
+	float displacementY = 0.f;
 
-	const float g = MARS_GRAVITY;
-	const int t = 1;
-	const float initalVelocity = sqrtf(float((hSpeed * hSpeed) + (vSpeed * vSpeed)));
-	const float v = initalVelocity /*+ thrustPower*/;
+	float accelerationX = 0.f;
+	float accelerationY = 0.f;
 
-	const float vx = v * cos(thetha);
-	const float vy = v * sin(thetha);
+	calculateComponents(newAngle, newPower, hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
+	calculateComponents(newAngle, newPower, vSpeed, CT_VERTICAL, displacementY, accelerationY);
 
-	const float x = vx * t;
-	const float y = (vy * t) - (g / 2.f);
+	float newX = (float)position.getXCoord() + displacementX;
+	float newY = (float)position.getYCoord() + displacementY;
 
-	const int xOffset = int(x);
-	const int yOffset = int(y);
+	float newHSpeed = (float)hSpeed + accelerationX;
+	float newVSpeed = (float)vSpeed + accelerationY;
 
-	const float horizontalVelocity = x;
-	const float verticalVelocity = vy - (g * t);
+	cerr << "X=" << newX << "m, Y=" << newY << "m, ";
+	cerr << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
+	cerr << "Fule=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
+}
 
-	const int newHSpeed = int(horizontalVelocity);
-	const int newVSpeed = int(verticalVelocity);
+//*************************************************************************************************************
+//*************************************************************************************************************
 
-	int nextPower = power + thrustPower;
-	int nextFuel = fuel - nextPower;
-	int nextAngle = rotate + rotateAngle;
-	int nextX = 2 * position.getXCoord() - previousPosition.getXCoord() - nextPower * sin(nextAngle * PI / 180.f);
-	int nextY = 2 * position.getYCoord() - previousPosition.getYCoord() - g + nextPower * cos(nextAngle * PI / 180.f);
-	int nextVx = hSpeed - nextPower * sin(nextAngle * PI / 180.f);
-	int nextVy = vSpeed - g + nextPower * cos(nextAngle * PI / 180.f);
-
-	int debug = 0;
-	++debug;
+void Shuttle::print() const {
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -387,14 +413,14 @@ void Game::getTurnInput() {
 		// Fuel = 549l, Angle = -15°, Power = 1 (1.0m / s2)
 
 		X = 2500;
-		Y = 2699;
+		Y = 2700;
 		hSpeed = 0;
-		vSpeed = -3;
-		fuel = 549;
-		rotate = -15;
-		power = 1;
+		vSpeed = 0;
+		fuel = 550;
+		rotate = 0;
+		power = 0;
 
-		shuttle->setPreviousPosition(Coords(2500, 2700));
+		shuttle->setPreviousPosition(Coords(X, Y));
 	}
 	else {
 		cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
@@ -418,7 +444,7 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn() {
-	shuttle->simulate(0, 1);
+	shuttle->simulate(-15, 1);
 
 	cout << "-15 1" << endl;
 }
