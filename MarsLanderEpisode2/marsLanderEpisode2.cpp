@@ -20,7 +20,6 @@ const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
 const int TREE_ROOT_NODE_DEPTH = 1;
 const int ZERO_CHAR = '0';
-const int INVALID_COORD = -1;
 const int DIRECTIONS_COUNT = 8;
 const int RIGHT_ANGLE = 90;
 
@@ -38,21 +37,24 @@ enum ComponentType {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+typedef float Coord;
+const Coord INVALID_COORD = -1.f;
+
 class Coords {
 public:
 	Coords();
-	Coords(int xCoord, int yCoord);
+	Coords(Coord xCoord, Coord yCoord);
 
-	int getXCoord() const {
+	Coord getXCoord() const {
 		return xCoord;
 	}
 
-	int getYCoord() const {
+	Coord getYCoord() const {
 		return yCoord;
 	}
 
-	void setXCoord(int xCoord) { this->xCoord = xCoord; }
-	void setYCoord(int yCoord) { this->yCoord = yCoord; }
+	void setXCoord(Coord xCoord) { this->xCoord = xCoord; }
+	void setYCoord(Coord yCoord) { this->yCoord = yCoord; }
 
 	Coords& operator=(const Coords& other);
 	bool operator==(const Coords& other);
@@ -62,8 +64,8 @@ public:
 	bool isValid() const;
 	void debug() const;
 private:
-	int xCoord;
-	int yCoord;
+	Coord xCoord;
+	Coord yCoord;
 };
 
 //*************************************************************************************************************
@@ -79,8 +81,8 @@ Coords::Coords() :
 //*************************************************************************************************************
 
 Coords::Coords(
-	int xCoord,
-	int yCoord
+	Coord xCoord,
+	Coord yCoord
 ) :
 	xCoord(xCoord),
 	yCoord(yCoord)
@@ -184,11 +186,11 @@ public:
 	}
 
 
-	int getHSpeed() {
+	float getHSpeed() {
 		return hSpeed;
 	}
 
-	int getVSpeed() {
+	float getVSpeed() {
 		return vSpeed;
 	}
 
@@ -206,8 +208,8 @@ public:
 
 	void setPosition(Coords position) { this->position = position; }
 	void setPreviousPosition(Coords previousPosition) { this->previousPosition = previousPosition; }
-	void setHSpeed(int hSpeed) { this->hSpeed = hSpeed; }
-	void setVSpeed(int vSpeed) { this->vSpeed = vSpeed; }
+	void setHSpeed(float hSpeed) { this->hSpeed = hSpeed; }
+	void setVSpeed(float vSpeed) { this->vSpeed = vSpeed; }
 	void setFuel(int fuel) { this->fuel = fuel; }
 	void setRotate(int rotate) { this->rotate = rotate; }
 	void setPower(int power) { this->power = power; }
@@ -215,7 +217,7 @@ public:
 	void calculateComponents(
 		int newAngle,
 		int newPower,
-		int initialSpeed,
+		float initialSpeed,
 		ComponentType componentType,
 		float& displacement,
 		float& acceleration
@@ -228,8 +230,8 @@ public:
 private:
 	Coords position;
 	Coords previousPosition;
-	int hSpeed; // the horizontal speed (in m/s), can be negative.
-	int vSpeed; // the vertical speed (in m/s), can be negative.
+	float hSpeed; // the horizontal speed (in m/s), can be negative.
+	float vSpeed; // the vertical speed (in m/s), can be negative.
 	int fuel; // the quantity of remaining fuel in liters.
 	int rotate; // the rotation angle in degrees (-90 to 90).
 	int power; // the thrust power (0 to 4).
@@ -255,7 +257,7 @@ Shuttle::Shuttle() :
 void Shuttle::calculateComponents(
 	int newAngle,
 	int newPower,
-	int initialSpeed,
+	float initialSpeed,
 	ComponentType componentType,
 	float& displacement,
 	float& acceleration
@@ -274,35 +276,47 @@ void Shuttle::calculateComponents(
 		acceleration -= MARS_GRAVITY;
 	}
 
-	displacement = (float)initialSpeed + (0.5 * acceleration);
+	displacement = (float)initialSpeed + (.5f * acceleration);
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void Shuttle::simulate(int rotateAngle, int thrustPower) {
-	int newAngle = /*rotate +*/ rotateAngle;
-	int newPower = /*power +*/ thrustPower;
-	int newFuel = fuel - newPower; 
+	int simTurns = 0;
 
-	float displacementX = 0.f;
-	float displacementY = 0.f;
+	while (simTurns++ <= 35) {
+		int newAngle = /*rotate +*/ rotateAngle;
+		int newPower = /*power +*/ thrustPower;
+		int newFuel = fuel - newPower;
 
-	float accelerationX = 0.f;
-	float accelerationY = 0.f;
+		float displacementX = 0.f;
+		float displacementY = 0.f;
 
-	calculateComponents(newAngle, newPower, hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
-	calculateComponents(newAngle, newPower, vSpeed, CT_VERTICAL, displacementY, accelerationY);
+		float accelerationX = 0.f;
+		float accelerationY = 0.f;
 
-	float newX = (float)position.getXCoord() + displacementX;
-	float newY = (float)position.getYCoord() + displacementY;
+		calculateComponents(newAngle, newPower, hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
+		calculateComponents(newAngle, newPower, vSpeed, CT_VERTICAL, displacementY, accelerationY);
 
-	float newHSpeed = (float)hSpeed + accelerationX;
-	float newVSpeed = (float)vSpeed + accelerationY;
+		float newX = (float)position.getXCoord() + displacementX;
+		float newY = (float)position.getYCoord() + displacementY;
 
-	cerr << "X=" << newX << "m, Y=" << newY << "m, ";
-	cerr << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
-	cerr << "Fule=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
+		float newHSpeed = (float)hSpeed + accelerationX;
+		float newVSpeed = (float)vSpeed + accelerationY;
+
+		position.setXCoord(newX);
+		position.setYCoord(newY);
+
+		hSpeed = newHSpeed;
+		vSpeed = newVSpeed;
+
+		cout << "Turn: " << simTurns << endl;
+		cout << "X=" << newX << "m, Y=" << newY << "m, ";
+		cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
+		cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
+		cout << endl << endl;
+	}
 }
 
 //*************************************************************************************************************
@@ -409,9 +423,6 @@ void Game::getTurnInput() {
 	int power; // the thrust power (0 to 4).
 
 	if (USE_HARDCODED_INPUT) {
-		// X = 2500m, Y = 2699m, HSpeed = 0m / s VSpeed = -3m / s
-		// Fuel = 549l, Angle = -15°, Power = 1 (1.0m / s2)
-
 		X = 2500;
 		Y = 2700;
 		hSpeed = 0;
@@ -419,16 +430,14 @@ void Game::getTurnInput() {
 		fuel = 550;
 		rotate = 0;
 		power = 0;
-
-		shuttle->setPreviousPosition(Coords(X, Y));
 	}
 	else {
 		cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
 	}
 
-	shuttle->setPosition(Coords(X, Y));
-	shuttle->setHSpeed(hSpeed);
-	shuttle->setVSpeed(vSpeed);
+	shuttle->setPosition(Coords((float)X, (float)Y));
+	shuttle->setHSpeed((float)hSpeed);
+	shuttle->setVSpeed((float)vSpeed);
 	shuttle->setFuel(fuel);
 	shuttle->setRotate(rotate);
 	shuttle->setPower(power);
@@ -444,7 +453,7 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn() {
-	shuttle->simulate(-15, 1);
+	//shuttle->simulate(-15, 1);
 
 	cout << "-15 1" << endl;
 }
