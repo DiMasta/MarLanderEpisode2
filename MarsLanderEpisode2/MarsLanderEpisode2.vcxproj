@@ -68,7 +68,26 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>F:\CodinGames\CodinGamesSDK\OpenGL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\CodinGames\CodinGamesSDK\OpenGL\lib;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>F:\CodinGames\CodinGamesSDK\OpenGL\bin;$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>F:\CodinGames\CodinGamesSDK\OpenGL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\CodinGames\CodinGamesSDK\OpenGL\lib;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>F:\CodinGames\CodinGamesSDK\OpenGL\bin;$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ExecutablePath>F:\CodinGames\CodinGamesSDK\OpenGL\bin;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>F:\CodinGames\CodinGamesSDK\OpenGL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\CodinGames\CodinGamesSDK\OpenGL\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ExecutablePath>F:\CodinGames\CodinGamesSDK\OpenGL\bin;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>F:\CodinGames\CodinGamesSDK\OpenGL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\CodinGames\CodinGamesSDK\OpenGL\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -82,6 +101,9 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>freeglut.lib;glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -107,6 +129,7 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>freeglut.lib;glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

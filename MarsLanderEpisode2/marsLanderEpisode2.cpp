@@ -10,11 +10,13 @@
 #include <ctime>
 #include <deque>
 #include <math.h>
+#include <GL/glut.h>
 
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 1;
-const bool USE_HARDCODED_INPUT = 0;
+const bool USE_HARDCODED_INPUT = 1;
+const bool VISUAL_DEBUG = 1;
 
 const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
@@ -462,6 +464,34 @@ void Shuttle::print() const {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+class VisualDebugger {
+public:
+	VisualDebugger();
+	~VisualDebugger();
+
+private:
+	
+};
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+VisualDebugger::VisualDebugger() {
+
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+VisualDebugger::~VisualDebugger() {
+
+}
+
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+
 class Game {
 public:
 	Game();
@@ -484,6 +514,8 @@ private:
 
 	Shuttle* shuttle;
 	Surface* surface;
+
+	VisualDebugger* visualDebugger;
 };
 
 //*************************************************************************************************************
@@ -492,7 +524,8 @@ private:
 Game::Game() :
 	turnsCount(0),
 	shuttle(NULL),
-	surface(NULL)
+	surface(NULL),
+	visualDebugger(NULL)
 {
 }
 
@@ -509,6 +542,12 @@ Game::~Game() {
 		delete surface;
 		surface = NULL;
 	}
+
+	if (visualDebugger) {
+		delete visualDebugger;
+		visualDebugger = NULL;
+	}
+
 }
 
 //*************************************************************************************************************
@@ -517,6 +556,7 @@ Game::~Game() {
 void Game::initGame() {
 	shuttle = new Shuttle();
 	surface = new Surface();
+	visualDebugger = new VisualDebugger();
 }
 
 //*************************************************************************************************************
@@ -560,6 +600,10 @@ void Game::getGameInput() {
 
 			point0 = point1;
 		}
+	}
+
+	if (VISUAL_DEBUG) {
+		//surface->draw(visualDebugger);
 	}
 }
 
@@ -608,7 +652,7 @@ void Game::turnBegin() {
 void Game::makeTurn() {
 	//shuttle->simulate(-15, 1);
 
-	cout << "-15 1" << endl;
+	//cout << "-15 1" << endl;
 }
 
 //*************************************************************************************************************
@@ -638,6 +682,30 @@ void Game::debug() const {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+void display(void)
+{
+	glClear(GL_COLOR_BUFFER_BIT);
+	glColor3f(1.0, 0.0, 0.0);
+
+	//draw two points
+	glBegin(GL_POINTS);
+	for (int i = 0; i < 10; i++)
+	{
+		glVertex2i(10 + 5 * i, 110);
+	}
+	glEnd();
+
+	//draw a line
+	glBegin(GL_LINES);
+	glVertex2i(0, 0);
+	glVertex2i(100, 100);
+	glVertex2i(100, 100);
+	glVertex2i(150, 100);
+	glEnd();
+
+	glFlush();
+}
+
 #ifdef TESTS
 #include "debug.h"
 #endif // TESTS
@@ -650,6 +718,18 @@ int main(int argc, char** argv) {
 	Game game;
 	game.play();
 #endif // TESTS
+
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+	glutInitWindowSize(500, 500);
+	glutInitWindowPosition(200, 150);
+	glutCreateWindow("points and lines");
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glMatrixMode(GL_PROJECTION);
+	gluOrtho2D(0.0, 200.0, 0.0, 150.0);
+	glutDisplayFunc(display);
+	glutReshapeWindow(200, 200);
+	glutMainLoop();
 
 	return 0;
 }
