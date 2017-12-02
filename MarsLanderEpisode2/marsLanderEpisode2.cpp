@@ -10,13 +10,18 @@
 #include <ctime>
 #include <deque>
 #include <math.h>
+#include <fstream>
+
+//#define VISUAL_DEBUG
+#define REDIRECT_CIN_FROM_FILE
+
+#ifdef VISUAL_DEBUG
 #include <GL/glut.h>
+#endif // VISUAL_DEBUG
 
 using namespace std;
 
-const bool OUTPUT_GAME_DATA = 1;
-const bool USE_HARDCODED_INPUT = 1;
-const bool VISUAL_DEBUG = 1;
+const bool OUTPUT_GAME_DATA = 0;
 
 const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
@@ -26,8 +31,9 @@ const int DIRECTIONS_COUNT = 8;
 const int RIGHT_ANGLE = 90;
 
 const float MARS_GRAVITY = 3.711f;
-
 const float PI = 3.14159265f;
+
+const string INPUT_FILE_NAME = "input.txt";
 
 enum ComponentType {
 	CT_HORIZONTAL = 0,
@@ -581,30 +587,36 @@ void Game::gameLoop() {
 //*************************************************************************************************************
 
 void Game::getGameInput() {
-	if (!USE_HARDCODED_INPUT) {
-		int surfaceN; // the number of points used to draw the surface of Mars.
-		cin >> surfaceN; cin.ignore();
+	int surfaceN; // the number of points used to draw the surface of Mars.
+	cin >> surfaceN;
 
-		Coords point0;
+	if (OUTPUT_GAME_DATA) {
+		cerr << surfaceN << endl;
+	}
 
-		for (int i = 0; i < surfaceN; i++) {
-			int landX; // X coordinate of a surface point. (0 to 6999)
-			int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
-			cin >> landX >> landY; cin.ignore();
+	Coords point0;
 
-			Coords point1((float)landX, (float)landY);
+	for (int i = 0; i < surfaceN; i++) {
+		int landX; // X coordinate of a surface point. (0 to 6999)
+		int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
+		cin >> landX >> landY; cin.ignore();
 
-			if (0 != i) {
-				surface->addLine(point0, point1);
-			}
-
-			point0 = point1;
+		if (OUTPUT_GAME_DATA) {
+			cerr << landX << " " << landY << endl;
 		}
+
+		Coords point1((float)landX, (float)landY);
+
+		if (0 != i) {
+			surface->addLine(point0, point1);
+		}
+
+		point0 = point1;
 	}
 
-	if (VISUAL_DEBUG) {
+	//if (VISUAL_DEBUG) {
 		//surface->draw(visualDebugger);
-	}
+	//}
 }
 
 //*************************************************************************************************************
@@ -619,17 +631,11 @@ void Game::getTurnInput() {
 	int rotate; // the rotation angle in degrees (-90 to 90).
 	int power; // the thrust power (0 to 4).
 
-	if (USE_HARDCODED_INPUT) {
-		X = 2500;
-		Y = 2700;
-		hSpeed = 0;
-		vSpeed = 0;
-		fuel = 550;
-		rotate = 0;
-		power = 0;
-	}
-	else {
-		cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
+	cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
+
+	if (OUTPUT_GAME_DATA) {
+		cerr << X << " " << Y << " " << hSpeed << " " << vSpeed << " ";
+		cerr << fuel << " " << rotate << " " << power << endl;
 	}
 
 	shuttle->setPosition(Coords((float)X, (float)Y));
@@ -652,7 +658,7 @@ void Game::turnBegin() {
 void Game::makeTurn() {
 	//shuttle->simulate(-15, 1);
 
-	//cout << "-15 1" << endl;
+	cout << "-15 1" << endl;
 }
 
 //*************************************************************************************************************
@@ -682,8 +688,8 @@ void Game::debug() const {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-void display(void)
-{
+#ifdef VISUAL_DEBUG
+void display() {
 	glClear(GL_COLOR_BUFFER_BIT);
 	glColor3f(1.0, 0.0, 0.0);
 
@@ -705,12 +711,24 @@ void display(void)
 
 	glFlush();
 }
+#endif // VISUAL_DEBUG
 
 #ifdef TESTS
 #include "debug.h"
 #endif // TESTS
 
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+
 int main(int argc, char** argv) {
+
+#ifdef REDIRECT_CIN_FROM_FILE
+	ifstream in(INPUT_FILE_NAME);
+	streambuf *cinbuf = cin.rdbuf();
+	cin.rdbuf(in.rdbuf());
+#endif
+
 #ifdef TESTS
 	doctest::Context context;
 	int res = context.run();
@@ -719,6 +737,7 @@ int main(int argc, char** argv) {
 	game.play();
 #endif // TESTS
 
+#ifdef VISUAL_DEBUG
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 	glutInitWindowSize(500, 500);
@@ -730,6 +749,7 @@ int main(int argc, char** argv) {
 	glutDisplayFunc(display);
 	glutReshapeWindow(200, 200);
 	glutMainLoop();
+#endif // VISUAL_DEBUG
 
 	return 0;
 }
