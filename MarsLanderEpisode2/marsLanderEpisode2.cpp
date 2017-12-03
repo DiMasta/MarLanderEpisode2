@@ -23,6 +23,9 @@ using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
 
+const int MAP_WIDTH = 7000;
+const int MAP_HEIGHT = 3000;
+const int ASPECT = 10;
 const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
 const int TREE_ROOT_NODE_DEPTH = 1;
@@ -501,9 +504,12 @@ VisualDebugger::~VisualDebugger() {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+float firstLineX = 0.f;
+
 class Game {
 public:
 	Game();
+	Game(int argc, char** argv);
 	~Game();
 
 	void initGame();
@@ -518,13 +524,20 @@ public:
 
 	void debug() const;
 
+	static void initGLUT(int argc, char** argv);
+	static void handleKeypress(unsigned char key, int x, int y);
+	static void initRendering();
+	static void update(int value);
+	static void drawScene();
+	void render();
+
 private:
 	int turnsCount;
 
 	Shuttle* shuttle;
 	Surface* surface;
 
-	VisualDebugger* visualDebugger;
+	VisualDebugger* visualDebugger;	
 };
 
 //*************************************************************************************************************
@@ -536,6 +549,17 @@ Game::Game() :
 	surface(NULL),
 	visualDebugger(NULL)
 {
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Game::Game(int argc, char** argv) :
+	Game()
+{
+	initGLUT(argc, argv);
+
+	firstLineX = 0.f;
 }
 
 //*************************************************************************************************************
@@ -572,7 +596,7 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
-
+	render();
 }
 
 //*************************************************************************************************************
@@ -688,13 +712,95 @@ void Game::play() {
 void Game::debug() const {
 }
 
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::initGLUT(int argc, char** argv) {
+#ifdef VISUAL_DEBUG
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowSize(MAP_WIDTH, MAP_HEIGHT);
+	glutInitWindowPosition(200, 150);
+	glutCreateWindow("Simple Animation");
+	initRendering();
+	glMatrixMode(GL_PROJECTION);
+	gluOrtho2D(0.0, MAP_WIDTH, 0.0, MAP_HEIGHT);
+	glutDisplayFunc(drawScene);
+	glutKeyboardFunc(handleKeypress);
+	glutReshapeWindow(MAP_WIDTH / ASPECT, MAP_HEIGHT / ASPECT);
+#endif // VISUAL_DEBUG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::handleKeypress(unsigned char key, int x, int y) {
+#ifdef VISUAL_DEBUG
+	switch (key) {
+		case 27:
+			exit(0);
+	}
+#endif // VISUAL_DEBUG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::initRendering() {
+#ifdef VISUAL_DEBUG
+	glEnable(GL_DEPTH_TEST);
+#endif // VISUAL_DEBUG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::update(int value) {
+#ifdef VISUAL_DEBUG
+	firstLineX += 1.f;
+
+	glutPostRedisplay(); // Inform GLUT that the display has changed
+	glutTimerFunc(25, update, 0);//Call update after each 25 millisecond
+#endif // VISUAL_DEBUG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::drawScene() {
+#ifdef VISUAL_DEBUG
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glColor3f(1.0, 0.0, 0.0);
+
+	//draw a line
+	glBegin(GL_LINES);
+	glVertex2i(GLint(firstLineX), 0);
+	glVertex2i(1000, 1000);
+	glVertex2i(1000, 1000);
+	glVertex2i(1500, 1000);
+	glEnd();
+
+	glutSwapBuffers(); //Send the 3D scene to the screen
+#endif // VISUAL_DEBUG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::render() {
+#ifdef VISUAL_DEBUG
+	glutTimerFunc(25, update, 0);
+	glutMainLoop();
+#endif // VISUAL_DEBUG
+}
+
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
 #ifdef VISUAL_DEBUG
 
-float firstLineX = 0.f;
+//float firstLineX = 0.f;
 
 void handleKeypress(unsigned char key, int x, int y) {
 	switch (key) {
@@ -720,10 +826,10 @@ void drawScene() {
 
 	//draw a line
 	glBegin(GL_LINES);
-	glVertex2i(firstLineX, 0);
-	glVertex2i(100, 100);
-	glVertex2i(100, 100);
-	glVertex2i(150, 100);
+	glVertex2i(GLint(firstLineX), 0);
+	glVertex2i(1000, 1000);
+	glVertex2i(1000, 1000);
+	glVertex2i(1500, 1000);
 	glEnd();
 
 	glutSwapBuffers(); //Send the 3D scene to the screen
@@ -746,29 +852,29 @@ int main(int argc, char** argv) {
 	cin.rdbuf(in.rdbuf());
 #endif
 
+//#ifdef VISUAL_DEBUG
+//	glutInit(&argc, argv);
+//	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+//	glutInitWindowSize(MAP_WIDTH, MAP_HEIGHT);
+//	glutInitWindowPosition(200, 150);
+//	glutCreateWindow("Simple Animation");
+//	initRendering();
+//	glMatrixMode(GL_PROJECTION);
+//	gluOrtho2D(0.0, MAP_WIDTH, 0.0, MAP_HEIGHT);
+//	glutDisplayFunc(drawScene);
+//	glutKeyboardFunc(handleKeypress);
+//	glutReshapeWindow(MAP_WIDTH / ASPECT, MAP_HEIGHT / ASPECT);
+//	glutTimerFunc(25, update, 0);
+//	glutMainLoop();
+//#endif // VISUAL_DEBUG
+
 #ifdef TESTS
 	doctest::Context context;
 	int res = context.run();
 #else
-	Game game;
+	Game game(argc, argv);
 	game.play();
 #endif // TESTS
-
-#ifdef VISUAL_DEBUG
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	glutInitWindowSize(500, 500);
-	glutInitWindowPosition(200, 150);
-	glutCreateWindow("Simple Animation");
-	initRendering();
-	glMatrixMode(GL_PROJECTION);
-	gluOrtho2D(0.0, 200.0, 0.0, 150.0);
-	glutDisplayFunc(drawScene);
-	glutKeyboardFunc(handleKeypress);
-	glutReshapeWindow(400, 400);
-	glutTimerFunc(25, update, 0);
-	glutMainLoop();
-#endif // VISUAL_DEBUG
 
 	return 0;
 }
