@@ -12,7 +12,7 @@
 #include <math.h>
 #include <fstream>
 
-//#define VISUAL_DEBUG
+#define VISUAL_DEBUG
 #define REDIRECT_CIN_FROM_FILE
 
 #ifdef VISUAL_DEBUG
@@ -426,8 +426,11 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	int simTurns = 0;
 
 	while (simTurns++ <= 35) {
-		int newAngle = /*rotate +*/ rotateAngle;
-		int newPower = /*power +*/ thrustPower;
+		//int newAngle = rotate + rotateAngle;
+		//int newPower = power + thrustPower;
+
+		int newAngle = rotateAngle;
+		int newPower = thrustPower;
 		int newFuel = fuel - newPower;
 
 		float displacementX = 0.f;
@@ -569,6 +572,7 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
+
 }
 
 //*************************************************************************************************************
@@ -658,7 +662,7 @@ void Game::turnBegin() {
 void Game::makeTurn() {
 	//shuttle->simulate(-15, 1);
 
-	cout << "-15 1" << endl;
+	//cout << "-15 1" << endl;
 }
 
 //*************************************************************************************************************
@@ -675,7 +679,7 @@ void Game::play() {
 	initGame();
 	getGameInput();
 	gameBegin();
-	gameLoop();
+	//gameLoop();
 }
 
 //*************************************************************************************************************
@@ -689,27 +693,40 @@ void Game::debug() const {
 //-------------------------------------------------------------------------------------------------------------
 
 #ifdef VISUAL_DEBUG
-void display() {
-	glClear(GL_COLOR_BUFFER_BIT);
-	glColor3f(1.0, 0.0, 0.0);
 
-	//draw two points
-	glBegin(GL_POINTS);
-	for (int i = 0; i < 10; i++)
-	{
-		glVertex2i(10 + 5 * i, 110);
+float firstLineX = 0.f;
+
+void handleKeypress(unsigned char key, int x, int y) {
+	switch (key) {
+		case 27:
+			exit(0);
 	}
-	glEnd();
+}
+
+void initRendering() {
+	glEnable(GL_DEPTH_TEST);
+}
+
+void update(int value) {
+	firstLineX += 1.f;
+
+	glutPostRedisplay(); // Inform GLUT that the display has changed
+	glutTimerFunc(25, update, 0);//Call update after each 25 millisecond
+}
+
+void drawScene() {
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glColor3f(1.0, 0.0, 0.0);
 
 	//draw a line
 	glBegin(GL_LINES);
-	glVertex2i(0, 0);
+	glVertex2i(firstLineX, 0);
 	glVertex2i(100, 100);
 	glVertex2i(100, 100);
 	glVertex2i(150, 100);
 	glEnd();
 
-	glFlush();
+	glutSwapBuffers(); //Send the 3D scene to the screen
 }
 #endif // VISUAL_DEBUG
 
@@ -739,15 +756,17 @@ int main(int argc, char** argv) {
 
 #ifdef VISUAL_DEBUG
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(500, 500);
 	glutInitWindowPosition(200, 150);
-	glutCreateWindow("points and lines");
-	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glutCreateWindow("Simple Animation");
+	initRendering();
 	glMatrixMode(GL_PROJECTION);
 	gluOrtho2D(0.0, 200.0, 0.0, 150.0);
-	glutDisplayFunc(display);
-	glutReshapeWindow(200, 200);
+	glutDisplayFunc(drawScene);
+	glutKeyboardFunc(handleKeypress);
+	glutReshapeWindow(400, 400);
+	glutTimerFunc(25, update, 0);
 	glutMainLoop();
 #endif // VISUAL_DEBUG
 
