@@ -192,6 +192,22 @@ public:
 
 	bool pointBelow(const Coords& landerPoint);
 
+	Coords getPoint0() const {
+		return point0;
+	}
+
+	Coords getPoint1() const {
+		return point1;
+	}
+
+	bool getLandingZone() const {
+		return landingZone;
+	}
+
+	void setPoint0(Coords point0) { this->point0 = point0; }
+	void setPoint1(Coords point1) { this->point1 = point1; }
+	void setLandingZone(bool landingZone) { this->landingZone = landingZone; }
+
 private:
 	Coords point0;
 	Coords point1;
@@ -260,6 +276,8 @@ public:
 	Surface();
 	~Surface();
 
+	int getLinesCount() const;
+	Line getLine(int lineIdx) const;
 	bool collisionWithSurface(const Coords& landerPoint);
 	void addLine(const Coords& point0, const Coords& point1);
 private:
@@ -282,6 +300,20 @@ Surface::Surface() :
 
 Surface::~Surface() {
 
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+int Surface::getLinesCount() const {
+	return int(lines.size());
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Line Surface::getLine(int lineIdx) const {
+	return lines[lineIdx];
 }
 
 //*************************************************************************************************************
@@ -476,35 +508,22 @@ void Shuttle::print() const {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-class VisualDebugger {
-public:
-	VisualDebugger();
-	~VisualDebugger();
+#ifdef VISUAL_DEBUG
+struct RenderData {
+	RenderData() :
+		surface(NULL)
+	{
 
-private:
-	
-};
+	}
 
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-VisualDebugger::VisualDebugger() {
-
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-VisualDebugger::~VisualDebugger() {
-
-}
+	Surface* surface;
+} renderData;
+#endif // VISUAL_DEBUG
 
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
-
-float firstLineX = 0.f;
 
 class Game {
 public:
@@ -529,6 +548,7 @@ public:
 	static void initRendering();
 	static void update(int value);
 	static void drawScene();
+	void setRenderData() const;
 	void render();
 
 private:
@@ -536,8 +556,6 @@ private:
 
 	Shuttle* shuttle;
 	Surface* surface;
-
-	VisualDebugger* visualDebugger;	
 };
 
 //*************************************************************************************************************
@@ -546,8 +564,7 @@ private:
 Game::Game() :
 	turnsCount(0),
 	shuttle(NULL),
-	surface(NULL),
-	visualDebugger(NULL)
+	surface(NULL)
 {
 }
 
@@ -558,8 +575,6 @@ Game::Game(int argc, char** argv) :
 	Game()
 {
 	initGLUT(argc, argv);
-
-	firstLineX = 0.f;
 }
 
 //*************************************************************************************************************
@@ -575,12 +590,6 @@ Game::~Game() {
 		delete surface;
 		surface = NULL;
 	}
-
-	if (visualDebugger) {
-		delete visualDebugger;
-		visualDebugger = NULL;
-	}
-
 }
 
 //*************************************************************************************************************
@@ -589,13 +598,13 @@ Game::~Game() {
 void Game::initGame() {
 	shuttle = new Shuttle();
 	surface = new Surface();
-	visualDebugger = new VisualDebugger();
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void Game::gameBegin() {
+	setRenderData();
 	render();
 }
 
@@ -753,8 +762,6 @@ void Game::initRendering() {
 
 void Game::update(int value) {
 #ifdef VISUAL_DEBUG
-	firstLineX += 1.f;
-
 	glutPostRedisplay(); // Inform GLUT that the display has changed
 	glutTimerFunc(25, update, 0);//Call update after each 25 millisecond
 #endif // VISUAL_DEBUG
@@ -770,13 +777,27 @@ void Game::drawScene() {
 
 	//draw a line
 	glBegin(GL_LINES);
-	glVertex2i(GLint(firstLineX), 0);
-	glVertex2i(1000, 1000);
-	glVertex2i(1000, 1000);
-	glVertex2i(1500, 1000);
+	int linesCount = renderData.surface->getLinesCount();
+	for (int lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
+		Line line = renderData.surface->getLine(lineIdx);
+		Coords point0 = line.getPoint0();
+		Coords point1 = line.getPoint1();
+
+		glVertex2i(GLint(point0.getXCoord()), GLint(point0.getYCoord()));
+		glVertex2i(GLint(point1.getXCoord()), GLint(point1.getYCoord()));
+	}
 	glEnd();
 
-	glutSwapBuffers(); //Send the 3D scene to the screen
+	glutSwapBuffers();
+#endif // VISUAL_DEBUG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::setRenderData() const {
+#ifdef VISUAL_DEBUG
+	renderData.surface = surface;
 #endif // VISUAL_DEBUG
 }
 
@@ -794,44 +815,6 @@ void Game::render() {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-#ifdef VISUAL_DEBUG
-
-//float firstLineX = 0.f;
-
-void handleKeypress(unsigned char key, int x, int y) {
-	switch (key) {
-		case 27:
-			exit(0);
-	}
-}
-
-void initRendering() {
-	glEnable(GL_DEPTH_TEST);
-}
-
-void update(int value) {
-	firstLineX += 1.f;
-
-	glutPostRedisplay(); // Inform GLUT that the display has changed
-	glutTimerFunc(25, update, 0);//Call update after each 25 millisecond
-}
-
-void drawScene() {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glColor3f(1.0, 0.0, 0.0);
-
-	//draw a line
-	glBegin(GL_LINES);
-	glVertex2i(GLint(firstLineX), 0);
-	glVertex2i(1000, 1000);
-	glVertex2i(1000, 1000);
-	glVertex2i(1500, 1000);
-	glEnd();
-
-	glutSwapBuffers(); //Send the 3D scene to the screen
-}
-#endif // VISUAL_DEBUG
-
 #ifdef TESTS
 #include "debug.h"
 #endif // TESTS
@@ -847,22 +830,6 @@ int main(int argc, char** argv) {
 	streambuf *cinbuf = cin.rdbuf();
 	cin.rdbuf(in.rdbuf());
 #endif
-
-//#ifdef VISUAL_DEBUG
-//	glutInit(&argc, argv);
-//	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-//	glutInitWindowSize(MAP_WIDTH, MAP_HEIGHT);
-//	glutInitWindowPosition(200, 150);
-//	glutCreateWindow("Simple Animation");
-//	initRendering();
-//	glMatrixMode(GL_PROJECTION);
-//	gluOrtho2D(0.0, MAP_WIDTH, 0.0, MAP_HEIGHT);
-//	glutDisplayFunc(drawScene);
-//	glutKeyboardFunc(handleKeypress);
-//	glutReshapeWindow(MAP_WIDTH / ASPECT, MAP_HEIGHT / ASPECT);
-//	glutTimerFunc(25, update, 0);
-//	glutMainLoop();
-//#endif // VISUAL_DEBUG
 
 #ifdef TESTS
 	doctest::Context context;
