@@ -17,6 +17,7 @@
 
 #ifdef VISUAL_DEBUG
 #include <GL/glut.h>
+#include <GL/freeglut.h>
 #endif // VISUAL_DEBUG
 
 using namespace std;
@@ -698,6 +699,8 @@ void Game::makeTurn() {
 //*************************************************************************************************************
 
 void Game::turnEnd() {
+	// render the turn debug data
+
 	++turnsCount;
 }
 
@@ -773,9 +776,8 @@ void Game::update(int value) {
 void Game::drawScene() {
 #ifdef VISUAL_DEBUG
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glColor3f(1.0, 0.0, 0.0);
+	glColor3f(1.f, 0.f, 0.f);
 
-	//draw a line
 	glBegin(GL_LINES);
 	int linesCount = renderData.surface->getLinesCount();
 	for (int lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
@@ -807,7 +809,8 @@ void Game::setRenderData() const {
 void Game::render() {
 #ifdef VISUAL_DEBUG
 	glutTimerFunc(25, update, 0);
-	glutMainLoop();
+	//glutMainLoop();
+	glutMainLoopEvent();
 #endif // VISUAL_DEBUG
 }
 
