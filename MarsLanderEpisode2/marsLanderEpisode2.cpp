@@ -12,7 +12,13 @@
 #include <math.h>
 #include <fstream>
 
+#define SVG
 #define REDIRECT_CIN_FROM_FILE
+
+#ifdef SVG
+#include "SVGManager.h"
+#endif // SVG
+
 
 using namespace std;
 
@@ -529,6 +535,11 @@ private:
 
 	Shuttle* shuttle;
 	Surface* surface;
+
+#ifdef SVG
+	SVGManager svgManager;
+#endif // SVG
+
 };
 
 //*************************************************************************************************************
@@ -537,7 +548,8 @@ private:
 Game::Game() :
 	turnsCount(0),
 	shuttle(NULL),
-	surface(NULL)
+	surface(NULL),
+	svgManager()
 {
 }
 
