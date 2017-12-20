@@ -281,6 +281,10 @@ public:
 	Line getLine(int lineIdx) const;
 	bool collisionWithSurface(const Coords& landerPoint);
 	void addLine(const Coords& point0, const Coords& point1);
+
+	void update() {
+		lines[0].setPoint0(lines[0].getPoint0() + Coords(1.f, 0.f));
+	}
 private:
 	Lines lines;
 	Line landingZone;
@@ -810,7 +814,12 @@ void Game::render() {
 #ifdef VISUAL_DEBUG
 	glutTimerFunc(25, update, 0);
 	//glutMainLoop();
-	glutMainLoopEvent();
+
+	while (true) {
+		glutMainLoopEvent();
+
+		renderData.surface->update();
+	}
 #endif // VISUAL_DEBUG
 }
 
