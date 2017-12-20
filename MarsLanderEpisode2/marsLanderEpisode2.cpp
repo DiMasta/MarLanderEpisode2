@@ -12,13 +12,7 @@
 #include <math.h>
 #include <fstream>
 
-//#define VISUAL_DEBUG
 #define REDIRECT_CIN_FROM_FILE
-
-#ifdef VISUAL_DEBUG
-#include <GL/glut.h>
-#include <GL/freeglut.h>
-#endif // VISUAL_DEBUG
 
 using namespace std;
 
@@ -513,27 +507,9 @@ void Shuttle::print() const {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-#ifdef VISUAL_DEBUG
-struct RenderData {
-	RenderData() :
-		surface(NULL)
-	{
-
-	}
-
-	Surface* surface;
-} renderData;
-#endif // VISUAL_DEBUG
-
-//-------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------
-
 class Game {
 public:
 	Game();
-	Game(int argc, char** argv);
 	~Game();
 
 	void initGame();
@@ -547,14 +523,6 @@ public:
 	void play();
 
 	void debug() const;
-
-	static void initGLUT(int argc, char** argv);
-	static void handleKeypress(unsigned char key, int x, int y);
-	static void initRendering();
-	static void update(int value);
-	static void drawScene();
-	void setRenderData() const;
-	void render();
 
 private:
 	int turnsCount;
@@ -571,15 +539,6 @@ Game::Game() :
 	shuttle(NULL),
 	surface(NULL)
 {
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-Game::Game(int argc, char** argv) :
-	Game()
-{
-	initGLUT(argc, argv);
 }
 
 //*************************************************************************************************************
@@ -724,105 +683,6 @@ void Game::play() {
 void Game::debug() const {
 }
 
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void Game::initGLUT(int argc, char** argv) {
-#ifdef VISUAL_DEBUG
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	glutInitWindowSize(MAP_WIDTH, MAP_HEIGHT);
-	glutInitWindowPosition(200, 150);
-	glutCreateWindow("Simple Animation");
-	initRendering();
-	glMatrixMode(GL_PROJECTION);
-	gluOrtho2D(0.0, MAP_WIDTH, 0.0, MAP_HEIGHT);
-	glutDisplayFunc(drawScene);
-	glutKeyboardFunc(handleKeypress);
-	glutReshapeWindow(MAP_WIDTH / ASPECT, MAP_HEIGHT / ASPECT);
-#endif // VISUAL_DEBUG
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void Game::handleKeypress(unsigned char key, int x, int y) {
-#ifdef VISUAL_DEBUG
-	switch (key) {
-		case 27:
-			exit(0);
-	}
-#endif // VISUAL_DEBUG
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void Game::initRendering() {
-#ifdef VISUAL_DEBUG
-	glEnable(GL_DEPTH_TEST);
-#endif // VISUAL_DEBUG
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void Game::update(int value) {
-#ifdef VISUAL_DEBUG
-	glutPostRedisplay(); // Inform GLUT that the display has changed
-	glutTimerFunc(25, update, 0);//Call update after each 25 millisecond
-#endif // VISUAL_DEBUG
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void Game::drawScene() {
-#ifdef VISUAL_DEBUG
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glColor3f(1.f, 0.f, 0.f);
-
-	glBegin(GL_LINES);
-	int linesCount = renderData.surface->getLinesCount();
-	for (int lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
-		Line line = renderData.surface->getLine(lineIdx);
-		Coords point0 = line.getPoint0();
-		Coords point1 = line.getPoint1();
-
-		glVertex2i(GLint(point0.getXCoord()), GLint(point0.getYCoord()));
-		glVertex2i(GLint(point1.getXCoord()), GLint(point1.getYCoord()));
-	}
-	glEnd();
-
-	glutSwapBuffers();
-#endif // VISUAL_DEBUG
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void Game::setRenderData() const {
-#ifdef VISUAL_DEBUG
-	renderData.surface = surface;
-#endif // VISUAL_DEBUG
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void Game::render() {
-#ifdef VISUAL_DEBUG
-	glutTimerFunc(25, update, 0);
-	//glutMainLoop();
-
-	while (true) {
-		glutMainLoopEvent();
-
-		renderData.surface->update();
-	}
-#endif // VISUAL_DEBUG
-}
-
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
@@ -847,7 +707,7 @@ int main(int argc, char** argv) {
 	doctest::Context context;
 	int res = context.run();
 #else
-	Game game(argc, argv);
+	Game game;
 	game.play();
 #endif // TESTS
 
