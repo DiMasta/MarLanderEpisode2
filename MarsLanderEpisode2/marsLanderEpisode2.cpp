@@ -12,7 +12,7 @@
 #include <math.h>
 #include <fstream>
 
-#define VISUAL_DEBUG
+//#define VISUAL_DEBUG
 #define REDIRECT_CIN_FROM_FILE
 
 #ifdef VISUAL_DEBUG
@@ -605,8 +605,8 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
-	setRenderData();
-	render();
+	//setRenderData();
+	//render();
 }
 
 //*************************************************************************************************************
