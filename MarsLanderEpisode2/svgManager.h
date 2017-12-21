@@ -12,7 +12,9 @@ public:
 	~SVGManager();
 
 	void fileInit();
+	void fileDone();
 	void fileClose();
+	void filePrintStr(std::string strToPrint);
 private:
 	std::ofstream svgHtmlFileStream;
 };

@@ -282,9 +282,8 @@ public:
 	bool collisionWithSurface(const Coords& landerPoint);
 	void addLine(const Coords& point0, const Coords& point1);
 
-	void update() {
-		lines[0].setPoint0(lines[0].getPoint0() + Coords(1.f, 0.f));
-	}
+	string constructSVGData() const;
+
 private:
 	Lines lines;
 	Line landingZone;
@@ -346,6 +345,39 @@ void Surface::addLine(const Coords& point0, const Coords& point1) {
 	if (point0.getYCoord() == point1.getYCoord()) {
 		landingZone = line;
 	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+
+string Surface::constructSVGData() const {
+#ifdef SVG
+	string svgStr = POLYLINE_BEGIN;
+
+	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
+		Line line = lines[lineIdx];
+		Coord startX = line.getPoint0().getXCoord();
+		Coord startY = MAP_HEIGHT - line.getPoint0().getYCoord();
+		Coord endX = line.getPoint1().getXCoord();
+		Coord endY = MAP_HEIGHT - line.getPoint1().getYCoord();
+
+		svgStr.append(to_string(startX));
+		svgStr.append(",");
+		svgStr.append(to_string(startY));
+		svgStr.append(" ");
+		svgStr.append(to_string(endX));
+		svgStr.append(",");
+		svgStr.append(to_string(endY));
+		svgStr.append(" ");
+	}
+
+	svgStr.append(POLYLINE_END);
+
+	return svgStr;
+#endif // SVG
+
+	return "";
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -527,6 +559,7 @@ public:
 	void makeTurn();
 	void turnEnd();
 	void play();
+	void gameEnd();
 
 	void debug() const;
 
@@ -580,8 +613,8 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
-	//setRenderData();
-	//render();
+	string surfaceSVGData = surface->constructSVGData();
+	svgManager.filePrintStr(surfaceSVGData);
 }
 
 //*************************************************************************************************************
@@ -687,6 +720,14 @@ void Game::play() {
 	getGameInput();
 	gameBegin();
 	//gameLoop();
+	gameEnd();
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::gameEnd() {
+	svgManager.fileDone();
 }
 
 //*************************************************************************************************************
