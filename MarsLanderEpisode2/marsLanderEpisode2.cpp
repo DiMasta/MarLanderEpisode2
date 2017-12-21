@@ -613,8 +613,10 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
+#ifdef SVG
 	string surfaceSVGData = surface->constructSVGData();
 	svgManager.filePrintStr(surfaceSVGData);
+#endif // SVG
 }
 
 //*************************************************************************************************************
@@ -719,7 +721,7 @@ void Game::play() {
 	initGame();
 	getGameInput();
 	gameBegin();
-	//gameLoop();
+	gameLoop();
 	gameEnd();
 }
 
@@ -727,7 +729,9 @@ void Game::play() {
 //*************************************************************************************************************
 
 void Game::gameEnd() {
+#ifdef SVG
 	svgManager.fileDone();
+#endif // SVG
 }
 
 //*************************************************************************************************************
