@@ -11,14 +11,15 @@
 #include <deque>
 #include <math.h>
 #include <fstream>
+#include <random>
 
 #define SVG
 #define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
 
 #ifdef SVG
 #include "SVGManager.h"
 #endif // SVG
-
 
 using namespace std;
 
@@ -34,10 +35,24 @@ const int ZERO_CHAR = '0';
 const int DIRECTIONS_COUNT = 8;
 const int RIGHT_ANGLE = 90;
 
-const float MARS_GRAVITY = 3.711f;
 const float PI = 3.14159265f;
 
 const string INPUT_FILE_NAME = "input.txt";
+const string OUTPUT_FILE_NAME = "output.txt";
+
+const float MARS_GRAVITY = 3.711f;
+const int CHROMOSOME_SIZE = 40;
+const int POPULATION_SIZE = 1;
+const int INVALID_ROTATION_ANGLE = 100;
+const int INVALID_POWER = -1;
+const int MIN_ROTATION_ANGLE = -90;
+const int MAX_ROTATION_ANGLE = 90;
+const int MIN_ROTATION_ANGLE_STEP = -15;
+const int MAX_ROTATION_ANGLE_STEP = 15;
+const int MIN_POWER = 0;
+const int MAX_POWER = 4;
+const int MIN_POWER_STEP = -1;
+const int MAX_POWER_STEP = 1;
 
 enum ComponentType {
 	CT_HORIZONTAL = 0,
@@ -350,7 +365,6 @@ void Surface::addLine(const Coords& point0, const Coords& point1) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-
 string Surface::constructSVGData() const {
 #ifdef SVG
 	string svgStr = POLYLINE_BEGIN;
@@ -388,6 +402,7 @@ string Surface::constructSVGData() const {
 class Shuttle {
 public:
 	Shuttle();
+	Shuttle(const Shuttle& shuttle);
 
 	Coords getPosition() {
 		return position;
@@ -466,6 +481,19 @@ Shuttle::Shuttle() :
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+Shuttle::Shuttle(const Shuttle& shuttle) {
+	position = shuttle.position;
+	previousPosition = shuttle.previousPosition;
+	hSpeed = shuttle.hSpeed;
+	vSpeed = shuttle.vSpeed;
+	fuel = shuttle.fuel;
+	rotate = shuttle.rotate;
+	power = shuttle.power;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void Shuttle::calculateComponents(
 	int newAngle,
 	int newPower,
@@ -497,47 +525,204 @@ void Shuttle::calculateComponents(
 void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	int simTurns = 0;
 
-	while (simTurns++ <= 35) {
-		//int newAngle = rotate + rotateAngle;
-		//int newPower = power + thrustPower;
+	//int newAngle = rotate + rotateAngle;
+	//int newPower = power + thrustPower;
 
-		int newAngle = rotateAngle;
-		int newPower = thrustPower;
-		int newFuel = fuel - newPower;
+	int newAngle = rotateAngle;
+	int newPower = thrustPower;
+	int newFuel = fuel - newPower;
 
-		float displacementX = 0.f;
-		float displacementY = 0.f;
+	float displacementX = 0.f;
+	float displacementY = 0.f;
 
-		float accelerationX = 0.f;
-		float accelerationY = 0.f;
+	float accelerationX = 0.f;
+	float accelerationY = 0.f;
 
-		calculateComponents(newAngle, newPower, hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
-		calculateComponents(newAngle, newPower, vSpeed, CT_VERTICAL, displacementY, accelerationY);
+	calculateComponents(newAngle, newPower, hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
+	calculateComponents(newAngle, newPower, vSpeed, CT_VERTICAL, displacementY, accelerationY);
 
-		float newX = (float)position.getXCoord() + displacementX;
-		float newY = (float)position.getYCoord() + displacementY;
+	float newX = (float)position.getXCoord() + displacementX;
+	float newY = (float)position.getYCoord() + displacementY;
 
-		float newHSpeed = (float)hSpeed + accelerationX;
-		float newVSpeed = (float)vSpeed + accelerationY;
+	float newHSpeed = (float)hSpeed + accelerationX;
+	float newVSpeed = (float)vSpeed + accelerationY;
 
-		position.setXCoord(newX);
-		position.setYCoord(newY);
+	position.setXCoord(newX);
+	position.setYCoord(newY);
 
-		hSpeed = newHSpeed;
-		vSpeed = newVSpeed;
+	hSpeed = newHSpeed;
+	vSpeed = newVSpeed;
 
-		cout << "Turn: " << simTurns << endl;
-		cout << "X=" << newX << "m, Y=" << newY << "m, ";
-		cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
-		cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
-		cout << endl << endl;
-	}
+	fuel = newFuel;
+	power = newPower;
+
+	//cout << "Turn: " << simTurns << endl;
+	//cout << "X=" << newX << "m, Y=" << newY << "m, ";
+	//cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
+	//cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
+	//cout << endl << endl;
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void Shuttle::print() const {
+}
+
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+
+struct Gene {
+	Gene();
+	Gene(int rotate, int power);
+
+	int rotate;
+	int power;
+};
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Gene::Gene() :
+	rotate(INVALID_ROTATION_ANGLE),
+	power(INVALID_POWER)
+{
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Gene::Gene(
+	int rotate,
+	int power
+) :
+	rotate(rotate),
+	power(power)
+{
+}
+
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+
+typedef vector<Gene> Chromosome;
+typedef vector<Chromosome> Population;
+
+typedef vector<Coords> Path;
+typedef vector<Path> PopulationPaths;
+
+class GeneticPopulation {
+public:
+	GeneticPopulation();
+	~GeneticPopulation();
+
+	void initRandomPopulation();
+	float evaluateGene(int geneIdx);
+	void simulate(Shuttle* shuttle);
+
+	string constructSVGData(int turnsCount) const;
+
+private:
+	Population population;
+	PopulationPaths populationPaths;
+
+};
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+GeneticPopulation::GeneticPopulation() :
+	population(POPULATION_SIZE),
+	populationPaths(POPULATION_SIZE)
+{
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+GeneticPopulation::~GeneticPopulation() {
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::initRandomPopulation() {
+	random_device angleRd; // obtain a random number from hardware
+	mt19937 angleEng(angleRd()); // seed the generator
+	uniform_int_distribution<> rotateDistr(MIN_ROTATION_ANGLE_STEP, MAX_ROTATION_ANGLE_STEP); // define the range
+
+	random_device powerRd;
+	mt19937 powerEng(powerRd());
+	uniform_int_distribution<> powerDistr(MIN_POWER_STEP, MAX_POWER_STEP);
+
+	int previousAngle = 0;
+	int previousPower = 0;
+
+	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+			int randAngle = previousAngle + rotateDistr(angleEng);
+
+			if (randAngle < MIN_ROTATION_ANGLE) {
+				randAngle = MIN_ROTATION_ANGLE;
+			}
+
+			if (randAngle > MAX_ROTATION_ANGLE) {
+				randAngle = MAX_ROTATION_ANGLE;
+			}
+
+			int randPower = previousPower + powerDistr(powerEng);
+
+			if (randPower < MIN_POWER) {
+				randPower = MIN_POWER;
+			}
+
+			if (randPower > MAX_POWER) {
+				randPower = MAX_POWER;
+			}
+
+			Gene gene(randAngle, randPower);
+			previousAngle = randAngle;
+			previousPower = randPower;
+			population[chromIdx].push_back(gene);
+		}
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+float GeneticPopulation::evaluateGene(int geneIdx) {
+	return 0.f;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::simulate(Shuttle* shuttle) {
+	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+		Shuttle chromShuttle(*shuttle);
+		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+			Gene gene = population[chromIdx][geneIdx];
+			chromShuttle.simulate(gene.rotate, gene.power);
+			populationPaths[chromIdx].push_back(chromShuttle.getPosition());
+		}
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+string GeneticPopulation::constructSVGData(int turnsCount) const {
+#ifdef SVG
+	string svgData;
+
+
+#endif // SVG
+
+	return "";
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -569,6 +754,8 @@ private:
 	Shuttle* shuttle;
 	Surface* surface;
 
+	GeneticPopulation geneticPopulation;
+
 #ifdef SVG
 	SVGManager svgManager;
 #endif // SVG
@@ -582,7 +769,10 @@ Game::Game() :
 	turnsCount(0),
 	shuttle(NULL),
 	surface(NULL),
-	svgManager()
+	geneticPopulation()
+#ifdef SVG
+	,svgManager()
+#endif // SVG
 {
 }
 
@@ -613,9 +803,15 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
+	geneticPopulation.initRandomPopulation();
+	geneticPopulation.simulate(shuttle);
+
 #ifdef SVG
 	string surfaceSVGData = surface->constructSVGData();
 	svgManager.filePrintStr(surfaceSVGData);
+
+	string populationSVGData = geneticPopulation.constructSVGData(turnsCount);
+	svgManager.filePrintStr(populationSVGData);
 #endif // SVG
 }
 
@@ -702,7 +898,7 @@ void Game::turnBegin() {
 void Game::makeTurn() {
 	//shuttle->simulate(-15, 1);
 
-	//cout << "-15 1" << endl;
+	cout << "-15 1" << endl;
 }
 
 //*************************************************************************************************************
@@ -758,7 +954,13 @@ int main(int argc, char** argv) {
 	ifstream in(INPUT_FILE_NAME);
 	streambuf *cinbuf = cin.rdbuf();
 	cin.rdbuf(in.rdbuf());
-#endif
+#endif // REDIRECT_CIN_FROM_FILE
+
+#ifdef REDIRECT_COUT_TO_FILE
+	ofstream out(OUTPUT_FILE_NAME);
+	streambuf *coutbuf = cout.rdbuf();
+	cout.rdbuf(out.rdbuf());
+#endif // REDIRECT_COUT_TO_FILE
 
 #ifdef TESTS
 	doctest::Context context;
