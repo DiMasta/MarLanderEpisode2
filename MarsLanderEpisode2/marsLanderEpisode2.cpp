@@ -523,8 +523,6 @@ void Shuttle::calculateComponents(
 //*************************************************************************************************************
 
 void Shuttle::simulate(int rotateAngle, int thrustPower) {
-	int simTurns = 0;
-
 	//int newAngle = rotate + rotateAngle;
 	//int newPower = power + thrustPower;
 
@@ -556,6 +554,7 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	fuel = newFuel;
 	power = newPower;
 
+	//int simTurns = 0;
 	//cout << "Turn: " << simTurns << endl;
 	//cout << "X=" << newX << "m, Y=" << newY << "m, ";
 	//cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
