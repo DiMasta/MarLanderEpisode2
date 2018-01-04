@@ -41,7 +41,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
-const int CHROMOSOME_SIZE = 40;
+const int CHROMOSOME_SIZE = 2;
 const int POPULATION_SIZE = 1;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -716,9 +716,34 @@ void GeneticPopulation::simulate(Shuttle* shuttle) {
 
 string GeneticPopulation::constructSVGData(int turnsCount) const {
 #ifdef SVG
-	string svgData;
+	string svgStr = "";
 
+	for (size_t pathIdx = 0; pathIdx < populationPaths.size(); ++pathIdx) {
+		svgStr.append(POLYLINE_BEGIN);
 
+		for (size_t positionIdx = 0; positionIdx < populationPaths[pathIdx].size() - 1; ++positionIdx) {
+			Coords position = populationPaths[pathIdx][positionIdx];
+			Coords nextPosition = populationPaths[pathIdx][positionIdx + 1];
+
+			Coord startX = position.getXCoord();
+			Coord startY = MAP_HEIGHT - position.getYCoord();
+			Coord endX = nextPosition.getXCoord();
+			Coord endY = MAP_HEIGHT - nextPosition.getYCoord();
+			
+			svgStr.append(to_string(startX));
+			svgStr.append(",");
+			svgStr.append(to_string(startY));
+			svgStr.append(" ");
+			svgStr.append(to_string(endX));
+			svgStr.append(",");
+			svgStr.append(to_string(endY));
+			svgStr.append(" ");
+		}
+
+		svgStr.append(POLYLINE_END);
+	}
+
+	return svgStr;
 #endif // SVG
 
 	return "";
@@ -811,6 +836,8 @@ void Game::gameBegin() {
 
 	string populationSVGData = geneticPopulation.constructSVGData(turnsCount);
 	svgManager.filePrintStr(populationSVGData);
+
+
 #endif // SVG
 }
 
@@ -823,6 +850,8 @@ void Game::gameLoop() {
 		turnBegin();
 		makeTurn();
 		turnEnd();
+
+		break;
 	}
 }
 
