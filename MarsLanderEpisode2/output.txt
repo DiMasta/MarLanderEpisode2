@@ -1,1 +1,241 @@
+26, 2, 
+90, 4, 
+65, 3, 
+-61, 3, 
+-22, 2, 
+-66, 0, 
+-25, 4, 
+57, 2, 
+21, 1, 
+59, 3, 
+-32, 0, 
+-63, 3, 
+-26, 3, 
+-31, 4, 
+-26, 1, 
+-18, 4, 
+64, 2, 
+-3, 0, 
+-67, 0, 
+60, 4, 
+50, 4, 
+-84, 4, 
+36, 0, 
+56, 4, 
+-12, 0, 
+26, 4, 
+88, 1, 
+-45, 1, 
+-74, 1, 
+-53, 2, 
+-30, 1, 
+22, 1, 
+-88, 1, 
+46, 1, 
+-32, 1, 
+23, 1, 
+82, 2, 
+-71, 1, 
+55, 1, 
+5, 3, 
+Turn=1
+X=2499.87m, Y=2698.63m, HSPeed=-0.258819m/s VSpeed=-2.74507m/s
+Fuel=549l, Angle=15, Power=1m/s2
+
+
+Turn=2
+X=2499.11m, Y=2694.89m, HSPeed=-1.25882m/s VSpeed=-4.72402m/s
+Fuel=547l, Angle=30, Power=2m/s2
+
+
+Turn=3
+X=2496.79m, Y=2689.37m, HSPeed=-3.38014m/s VSpeed=-6.3137m/s
+Fuel=544l, Angle=45, Power=3m/s2
+
+
+Turn=4
+X=2492.66m, Y=2682.5m, HSPeed=-4.88014m/s VSpeed=-7.42663m/s
+Fuel=541l, Angle=30, Power=3m/s2
+
+
+Turn=5
+X=2487.52m, Y=2674.19m, HSPeed=-5.39778m/s VSpeed=-9.20578m/s
+Fuel=539l, Angle=15, Power=2m/s2
+
+
+Turn=6
+X=2482.13m, Y=2663.63m, HSPeed=-5.39778m/s VSpeed=-11.9168m/s
+Fuel=538l, Angle=0, Power=1m/s2
+
+
+Turn=7
+X=2476.99m, Y=2650.82m, HSPeed=-4.88014m/s VSpeed=-13.6959m/s
+Fuel=536l, Angle=-15, Power=2m/s2
+
+
+Turn=8
+X=2472.11m, Y=2636.27m, HSPeed=-4.88014m/s VSpeed=-15.4069m/s
+Fuel=534l, Angle=0, Power=2m/s2
+
+
+Turn=9
+X=2467.1m, Y=2619.49m, HSPeed=-5.13896m/s VSpeed=-18.152m/s
+Fuel=533l, Angle=15, Power=1m/s2
+
+
+Turn=10
+X=2461.46m, Y=2600.35m, HSPeed=-6.13896m/s VSpeed=-20.1309m/s
+Fuel=531l, Angle=30, Power=2m/s2
+
+
+Turn=11
+X=2455.19m, Y=2578.84m, HSPeed=-6.39778m/s VSpeed=-22.876m/s
+Fuel=530l, Angle=15, Power=1m/s2
+
+
+Turn=12
+X=2448.79m, Y=2555.11m, HSPeed=-6.39778m/s VSpeed=-24.587m/s
+Fuel=528l, Angle=0, Power=2m/s2
+
+
+Turn=13
+X=2442.78m, Y=2530.12m, HSPeed=-5.62132m/s VSpeed=-25.4002m/s
+Fuel=525l, Angle=-15, Power=3m/s2
+
+
+Turn=14
+X=2438.16m, Y=2504.6m, HSPeed=-3.62132m/s VSpeed=-25.6471m/s
+Fuel=521l, Angle=-30, Power=4m/s2
+
+
+Turn=15
+X=2435.2m, Y=2478.44m, HSPeed=-2.30621m/s VSpeed=-26.6618m/s
+Fuel=518l, Angle=-26, Power=3m/s2
+
+
+Turn=16
+X=2433.51m, Y=2451.83m, HSPeed=-1.07014m/s VSpeed=-26.5685m/s
+Fuel=514l, Angle=-18, Power=4m/s2
+
+
+Turn=17
+X=2432.52m, Y=2424.9m, HSPeed=-0.913133m/s VSpeed=-27.2836m/s
+Fuel=511l, Angle=-3, Power=3m/s2
+
+
+Turn=18
+X=2431.66m, Y=2396.76m, HSPeed=-0.808461m/s VSpeed=-28.9974m/s
+Fuel=509l, Angle=-3, Power=2m/s2
+
+
+Turn=19
+X=2431m, Y=2366.38m, HSPeed=-0.499444m/s VSpeed=-31.7573m/s
+Fuel=508l, Angle=-18, Power=1m/s2
+
+
+Turn=20
+X=2430.56m, Y=2333.77m, HSPeed=-0.394772m/s VSpeed=-33.4711m/s
+Fuel=506l, Angle=-3, Power=2m/s2
+
+
+Turn=21
+X=2429.85m, Y=2299.91m, HSPeed=-1.01851m/s VSpeed=-34.2476m/s
+Fuel=503l, Angle=12, Power=3m/s2
+
+
+Turn=22
+X=2428.94m, Y=2265.8m, HSPeed=-0.809164m/s VSpeed=-33.9641m/s
+Fuel=499l, Angle=-3, Power=4m/s2
+
+
+Turn=23
+X=2427.81m, Y=2231.45m, HSPeed=-1.4329m/s VSpeed=-34.7407m/s
+Fuel=496l, Angle=12, Power=3m/s2
+
+
+Turn=24
+X=2425.47m, Y=2196.64m, HSPeed=-3.24886m/s VSpeed=-34.8876m/s
+Fuel=492l, Angle=27, Power=4m/s2
+
+
+Turn=25
+X=2421.91m, Y=2161.36m, HSPeed=-3.8726m/s VSpeed=-35.6642m/s
+Fuel=489l, Angle=12, Power=3m/s2
+
+
+Turn=26
+X=2417.16m, Y=2125.64m, HSPeed=-5.62608m/s VSpeed=-35.78m/s
+Fuel=485l, Angle=26, Power=4m/s2
+
+
+Turn=27
+X=2410.55m, Y=2089.13m, HSPeed=-7.59426m/s VSpeed=-37.2269m/s
+Fuel=482l, Angle=41, Power=3m/s2
+
+
+Turn=28
+X=2402.52m, Y=2050.95m, HSPeed=-8.471m/s VSpeed=-39.1403m/s
+Fuel=480l, Angle=26, Power=2m/s2
+
+
+Turn=29
+X=2393.95m, Y=2010.45m, HSPeed=-8.66181m/s VSpeed=-41.8697m/s
+Fuel=479l, Angle=11, Power=1m/s2
+
+
+Turn=30
+X=2385.36m, Y=1967.72m, HSPeed=-8.5223m/s VSpeed=-43.5855m/s
+Fuel=477l, Angle=-4, Power=2m/s2
+
+
+Turn=31
+X=2377m, Y=1922.75m, HSPeed=-8.19673m/s VSpeed=-46.351m/s
+Fuel=476l, Angle=-19, Power=1m/s2
+
+
+Turn=32
+X=2368.84m, Y=1875.04m, HSPeed=-8.12697m/s VSpeed=-49.0645m/s
+Fuel=475l, Angle=-4, Power=1m/s2
+
+
+Turn=33
+X=2360.88m, Y=1824.59m, HSPeed=-7.8014m/s VSpeed=-51.8299m/s
+Fuel=474l, Angle=-19, Power=1m/s2
+
+
+Turn=34
+X=2353.11m, Y=1771.41m, HSPeed=-7.73165m/s VSpeed=-54.5434m/s
+Fuel=473l, Angle=-4, Power=1m/s2
+
+
+Turn=35
+X=2345.54m, Y=1715.48m, HSPeed=-7.40608m/s VSpeed=-57.3089m/s
+Fuel=472l, Angle=-19, Power=1m/s2
+
+
+Turn=36
+X=2338.17m, Y=1656.82m, HSPeed=-7.33632m/s VSpeed=-60.0223m/s
+Fuel=471l, Angle=-4, Power=1m/s2
+
+
+Turn=37
+X=2330.64m, Y=1595.92m, HSPeed=-7.71794m/s VSpeed=-61.77m/s
+Fuel=469l, Angle=11, Power=2m/s2
+
+
+Turn=38
+X=2322.96m, Y=1532.79m, HSPeed=-7.64819m/s VSpeed=-64.4835m/s
+Fuel=468l, Angle=-4, Power=1m/s2
+
+
+Turn=39
+X=2315.22m, Y=1466.95m, HSPeed=-7.83899m/s VSpeed=-67.2128m/s
+Fuel=467l, Angle=11, Power=1m/s2
+
+
+Turn=40
+X=2307.29m, Y=1398.87m, HSPeed=-8.01331m/s VSpeed=-68.9315m/s
+Fuel=465l, Angle=5, Power=2m/s2
+
+
 -15 1

@@ -16,6 +16,7 @@
 #define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -42,7 +43,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
 const int CHROMOSOME_SIZE = 40;
-const int POPULATION_SIZE = 40;
+const int POPULATION_SIZE = 1;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -559,6 +560,10 @@ int Shuttle::clampPower(int newPower) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+#ifdef SIMULATION_OUTPUT
+int turn = 1;
+#endif // SIMULATION_OUTPUT
+
 void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	int newAngle = clampRotateAngle(rotateAngle);
 	int newPower = clampPower(thrustPower);
@@ -590,12 +595,13 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	power = newPower;
 	rotate = newAngle;
 
-	//int simTurns = 0;
-	//cout << "Turn: " << simTurns << endl;
-	//cout << "X=" << newX << "m, Y=" << newY << "m, ";
-	//cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
-	//cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
-	//cout << endl << endl;
+#ifdef SIMULATION_OUTPUT
+	cout << "Turn=" << turn++ << endl;
+	cout << "X=" << newX << "m, Y=" << newY << "m, ";
+	cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
+	cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
+	cout << endl << endl;
+#endif // SIMULATION_OUTPUT
 }
 
 //*************************************************************************************************************
@@ -700,6 +706,11 @@ void GeneticPopulation::initRandomPopulation() {
 
 			Gene gene(randAngle, randPower);
 			population[chromIdx].push_back(gene);
+
+#ifdef SIMULATION_OUTPUT
+			cout << randAngle << ", " << randPower << ", " << endl;
+#endif // SIMULATION_OUTPUT
+
 		}
 	}
 }

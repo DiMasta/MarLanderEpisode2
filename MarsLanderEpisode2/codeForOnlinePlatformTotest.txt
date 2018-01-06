@@ -1,0 +1,92 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+int out[80] = {
+    26, 2, 
+    90, 4, 
+    65, 3, 
+    -61, 3, 
+    -22, 2, 
+    -66, 0, 
+    -25, 4, 
+    57, 2, 
+    21, 1, 
+    59, 3, 
+    -32, 0, 
+    -63, 3, 
+    -26, 3, 
+    -31, 4, 
+    -26, 1, 
+    -18, 4, 
+    64, 2, 
+    -3, 0, 
+    -67, 0, 
+    60, 4, 
+    50, 4, 
+    -84, 4, 
+    36, 0, 
+    56, 4, 
+    -12, 0, 
+    26, 4, 
+    88, 1, 
+    -45, 1, 
+    -74, 1, 
+    -53, 2, 
+    -30, 1, 
+    22, 1, 
+    -88, 1, 
+    46, 1, 
+    -32, 1, 
+    23, 1, 
+    82, 2, 
+    -71, 1, 
+    55, 1, 
+    5, 3
+};
+
+/**
+ * Auto-generated code below aims at helping you parse
+ * the standard input according to the problem statement.
+ **/
+int main()
+{
+    int surfaceN; // the number of points used to draw the surface of Mars.
+    cin >> surfaceN; cin.ignore();
+    for (int i = 0; i < surfaceN; i++) {
+        int landX; // X coordinate of a surface point. (0 to 6999)
+        int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
+        cin >> landX >> landY; cin.ignore();
+    }
+
+    int turn = 0;
+
+    // game loop
+    while (1) {
+        int X;
+        int Y;
+        int hSpeed; // the horizontal speed (in m/s), can be negative.
+        int vSpeed; // the vertical speed (in m/s), can be negative.
+        int fuel; // the quantity of remaining fuel in liters.
+        int rotate; // the rotation angle in degrees (-90 to 90).
+        int power; // the thrust power (0 to 4).
+        cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
+    
+        cerr << "Turn=" << turn / 2 << endl;
+    	cerr << "X=" << X << "m, Y=" << Y << "m, ";
+	    cerr << "HSPeed=" << hSpeed << "m/s VSpeed=" << vSpeed << "m/s\n";
+    	cerr << "Fuel=" << fuel << "l, Angle=" << rotate << ", Power=" << power << "m/s2\n";
+	    cerr << endl << endl;
+        // Write an action using cout. DON'T FORGET THE "<< endl"
+        // To debug: cerr << "Debug messages..." << endl;
+
+
+        // rotate power. rotate is the desired rotation angle. power is the desired thrust power.
+        cout << out[turn] << " " << out[turn + 1] << endl;
+        
+        turn += 2;
+    }
+}
