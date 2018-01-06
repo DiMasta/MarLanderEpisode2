@@ -41,8 +41,8 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
-const int CHROMOSOME_SIZE = 2;
-const int POPULATION_SIZE = 1;
+const int CHROMOSOME_SIZE = 40;
+const int POPULATION_SIZE = 40;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -450,6 +450,9 @@ public:
 		float& acceleration
 	);
 
+	int clampRotateAngle(int newRotateAngle) const;
+	int clampPower(int newPower) const;
+
 	void simulate(int rotateAngle, int thrustPower);
 
 	void print() const;
@@ -522,12 +525,44 @@ void Shuttle::calculateComponents(
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Shuttle::simulate(int rotateAngle, int thrustPower) {
-	//int newAngle = rotate + rotateAngle;
-	//int newPower = power + thrustPower;
+int Shuttle::clampRotateAngle(int newRotateAngle) const {
+	int clampedAngle = newRotateAngle;
 
-	int newAngle = rotateAngle;
-	int newPower = thrustPower;
+	int angleDiff = newRotateAngle - rotate;
+	if (angleDiff > MAX_ROTATION_ANGLE_STEP) {
+		clampedAngle = rotate + MAX_ROTATION_ANGLE_STEP;
+	}
+	else if (angleDiff < MIN_ROTATION_ANGLE_STEP) {
+		clampedAngle = rotate + MIN_ROTATION_ANGLE_STEP;
+	}
+
+	return clampedAngle;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+int Shuttle::clampPower(int newPower) const {
+	int clampedPower = newPower;
+
+	int powerDiff = newPower - power;
+	if (powerDiff > MAX_POWER_STEP) {
+		clampedPower = power + MAX_POWER_STEP;
+	}
+	else if (powerDiff < MIN_POWER_STEP) {
+		clampedPower = power + MIN_POWER_STEP;
+	}
+
+	return clampedPower;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Shuttle::simulate(int rotateAngle, int thrustPower) {
+	int newAngle = clampRotateAngle(rotateAngle);
+	int newPower = clampPower(thrustPower);
+
 	int newFuel = fuel - newPower;
 
 	float displacementX = 0.f;
@@ -553,6 +588,7 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 
 	fuel = newFuel;
 	power = newPower;
+	rotate = newAngle;
 
 	//int simTurns = 0;
 	//cout << "Turn: " << simTurns << endl;
@@ -651,40 +687,18 @@ GeneticPopulation::~GeneticPopulation() {
 void GeneticPopulation::initRandomPopulation() {
 	random_device angleRd; // obtain a random number from hardware
 	mt19937 angleEng(angleRd()); // seed the generator
-	uniform_int_distribution<> rotateDistr(MIN_ROTATION_ANGLE_STEP, MAX_ROTATION_ANGLE_STEP); // define the range
+	uniform_int_distribution<> rotateDistr(MIN_ROTATION_ANGLE, MAX_ROTATION_ANGLE); // define the range
 
 	random_device powerRd;
 	mt19937 powerEng(powerRd());
-	uniform_int_distribution<> powerDistr(MIN_POWER_STEP, MAX_POWER_STEP);
-
-	int previousAngle = 0;
-	int previousPower = 0;
+	uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			int randAngle = previousAngle + rotateDistr(angleEng);
-
-			if (randAngle < MIN_ROTATION_ANGLE) {
-				randAngle = MIN_ROTATION_ANGLE;
-			}
-
-			if (randAngle > MAX_ROTATION_ANGLE) {
-				randAngle = MAX_ROTATION_ANGLE;
-			}
-
-			int randPower = previousPower + powerDistr(powerEng);
-
-			if (randPower < MIN_POWER) {
-				randPower = MIN_POWER;
-			}
-
-			if (randPower > MAX_POWER) {
-				randPower = MAX_POWER;
-			}
+			int randAngle = rotateDistr(angleEng);
+			int randPower = powerDistr(powerEng);
 
 			Gene gene(randAngle, randPower);
-			previousAngle = randAngle;
-			previousPower = randPower;
 			population[chromIdx].push_back(gene);
 		}
 	}
@@ -828,16 +842,10 @@ void Game::initGame() {
 
 void Game::gameBegin() {
 	geneticPopulation.initRandomPopulation();
-	geneticPopulation.simulate(shuttle);
 
 #ifdef SVG
 	string surfaceSVGData = surface->constructSVGData();
 	svgManager.filePrintStr(surfaceSVGData);
-
-	string populationSVGData = geneticPopulation.constructSVGData(turnsCount);
-	svgManager.filePrintStr(populationSVGData);
-
-
 #endif // SVG
 }
 
@@ -918,6 +926,12 @@ void Game::getTurnInput() {
 //*************************************************************************************************************
 
 void Game::turnBegin() {
+	geneticPopulation.simulate(shuttle);
+
+#ifdef SVG
+	string populationSVGData = geneticPopulation.constructSVGData(turnsCount);
+	svgManager.filePrintStr(populationSVGData);
+#endif // SVG
 }
 
 //*************************************************************************************************************
