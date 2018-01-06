@@ -42,8 +42,8 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
-const int CHROMOSOME_SIZE = 40;
-const int POPULATION_SIZE = 1;
+const int CHROMOSOME_SIZE = 60;
+const int POPULATION_SIZE = 40;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -262,18 +262,33 @@ bool Line::pointBelow(const Coords& landerPoint) {
 	bool below = false;
 
 	Coord landerX = landerPoint.getXCoord();
-	Coord lineX0 = point0.getXCoord();
-	Coord lineX1 = point1.getXCoord();
+	Coord line0X = point0.getXCoord();
+	Coord line1X = point1.getXCoord();
 
-	if (landerX >= lineX0 && landerX < lineX1) {
+	if (landerX >= line0X && landerX < line1X) {
 		Coord landerY = landerPoint.getYCoord();
-		Coord lineY0 = point0.getYCoord();
-		Coord lineY1 = point1.getYCoord();
+		Coord line0Y = point0.getYCoord();
+		Coord line1Y = point1.getYCoord();
 
-		float m = (lineY1 - lineY0) / (lineX1 - lineX0);
-		float b = lineY1 - (m * lineX1);
+		//	Line[{x1, y1}, { x2,y2 }]
+		//	Points{ xA,yA }, { xB,yB } ...
+		//
+		//	v1 = { x2 - x1, y2 - y1 }   # Vector 1
+		//	v2 = { x2 - xA, y2 - yA }   # Vector 1
+		//	xp = v1.x*v2.y - v1.y*v2.x  # Cross product
+		//	if xp > 0:
+		//		print 'on one side'
+		//	elif xp < 0 :
+		//		print 'on the other'
+		//	else:
+		//		print 'on the same line!'
 
-		if (landerY <= (m * landerX) + b) {
+		Coords v1(line1X - line0X, line1Y - line0Y);
+		Coords v2(line1X - landerX, line1Y - landerY);
+
+		int xp = static_cast<int>(v1.getXCoord() * v2.getYCoord() - v1.getYCoord() * v2.getXCoord());
+
+		if (xp < 0) {
 			below = true;
 		}
 	}
@@ -662,7 +677,7 @@ public:
 
 	void initRandomPopulation();
 	float evaluateGene(int geneIdx);
-	void simulate(Shuttle* shuttle);
+	void simulate(Shuttle* shuttle, Surface* surface);
 
 	string constructSVGData(int turnsCount) const;
 
@@ -725,13 +740,17 @@ float GeneticPopulation::evaluateGene(int geneIdx) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::simulate(Shuttle* shuttle) {
+void GeneticPopulation::simulate(Shuttle* shuttle, Surface* surface) {
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		Shuttle chromShuttle(*shuttle);
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 			Gene gene = population[chromIdx][geneIdx];
 			chromShuttle.simulate(gene.rotate, gene.power);
 			populationPaths[chromIdx].push_back(chromShuttle.getPosition());
+
+			if (surface->collisionWithSurface(chromShuttle.getPosition())) {
+				break;
+			}
 		}
 	}
 }
@@ -937,7 +956,7 @@ void Game::getTurnInput() {
 //*************************************************************************************************************
 
 void Game::turnBegin() {
-	geneticPopulation.simulate(shuttle);
+	geneticPopulation.simulate(shuttle, surface);
 
 #ifdef SVG
 	string populationSVGData = geneticPopulation.constructSVGData(turnsCount);
