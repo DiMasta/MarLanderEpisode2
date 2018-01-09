@@ -543,32 +543,32 @@ public:
 	Shuttle();
 	Shuttle(const Shuttle& shuttle);
 
-	Coords getPosition() {
+	Coords getPosition() const {
 		return position;
 	}
 
-	Coords getPreviousPosition() {
+	Coords getPreviousPosition() const {
 		return previousPosition;
 	}
 
 
-	float getHSpeed() {
+	float getHSpeed() const {
 		return hSpeed;
 	}
 
-	float getVSpeed() {
+	float getVSpeed() const {
 		return vSpeed;
 	}
 
-	int getFuel() {
+	int getFuel() const {
 		return fuel;
 	}
 
-	int getRotate() {
+	int getRotate() const {
 		return rotate;
 	}
 
-	int getPower() {
+	int getPower() const {
 		return power;
 	}
 
@@ -787,11 +787,117 @@ Gene::Gene(
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-typedef vector<Gene> Chromosome;
-typedef vector<Chromosome> Population;
+class Chromosome {
+public:
+	Chromosome();
+	~Chromosome();
 
-typedef vector<Coords> Path;
-typedef vector<Path> PopulationPaths;
+	Shuttle getShuttle() const {
+		return shuttle;
+	}
+
+	float getEvaluation() const {
+		return evaluation;
+	}
+
+	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
+	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
+
+	string constructSVGData() const;
+	void evaluate(Surface* surface) const;
+	void addGene(const Gene& gene);
+	void simulate(Surface* surface);
+
+private:
+	Shuttle shuttle;
+	float evaluation;
+
+	vector<Gene> chromosome;
+	vector<Coords> path;
+};
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Chromosome::Chromosome() :
+	shuttle(),
+	evaluation(0.f),
+	chromosome(),
+	path()
+{
+
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Chromosome::~Chromosome() {
+	chromosome.clear();
+	path.clear();
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+string Chromosome::constructSVGData() const {
+	string svgStr = "";
+
+	for (size_t positionIdx = 0; positionIdx < path.size() - 1; ++positionIdx) {
+		Coords position = path[positionIdx];
+		Coords nextPosition = path[positionIdx + 1];
+
+		Coord startX = position.getXCoord();
+		Coord startY = MAP_HEIGHT - position.getYCoord();
+		Coord endX = nextPosition.getXCoord();
+		Coord endY = MAP_HEIGHT - nextPosition.getYCoord();
+
+		svgStr.append(to_string(startX));
+		svgStr.append(",");
+		svgStr.append(to_string(startY));
+		svgStr.append(" ");
+		svgStr.append(to_string(endX));
+		svgStr.append(",");
+		svgStr.append(to_string(endY));
+		svgStr.append(" ");
+	}
+
+	return svgStr;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::evaluate(Surface* surface) const {
+	float distanceToLandingZone = surface->findDistanceToLandingZone(shuttle.getPosition());
+
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::addGene(const Gene& gene) {
+	chromosome.push_back(gene);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::simulate(Surface* surface) {
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+		Gene* gene = &chromosome[geneIdx];
+		shuttle.simulate(gene->rotate, gene->power);
+		path.push_back(shuttle.getPosition());
+
+		if (surface->collisionWithSurface(shuttle.getPosition())) {
+			break;
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
 
 class GeneticPopulation {
 public:
@@ -799,24 +905,19 @@ public:
 	~GeneticPopulation();
 
 	void initRandomPopulation();
-	float evaluateGene(int geneIdx);
 	void simulate(Shuttle* shuttle, Surface* surface);
 
-	string constructSVGData(int turnsCount) const;
-	void evaluateChromosome(int chromIdx, Shuttle* chromShuttle, Surface* surface) const;
+	string constructSVGData() const;
 
 private:
-	Population population;
-	PopulationPaths populationPaths;
-
+	vector<Chromosome> population;
 };
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 GeneticPopulation::GeneticPopulation() :
-	population(POPULATION_SIZE),
-	populationPaths(POPULATION_SIZE)
+	population(POPULATION_SIZE)
 {
 }
 
@@ -848,7 +949,7 @@ void GeneticPopulation::initRandomPopulation() {
 			//int randPower = (rand() % 5);
 
 			Gene gene(randAngle, randPower);
-			population[chromIdx].push_back(gene);
+			population[chromIdx].addGene(gene);
 
 #ifdef SIMULATION_OUTPUT
 			cout << randAngle << ", " << randPower << ", " << endl;
@@ -861,59 +962,26 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-float GeneticPopulation::evaluateGene(int geneIdx) {
-	return 0.f;
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
 void GeneticPopulation::simulate(Shuttle* shuttle, Surface* surface) {
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
-		Shuttle chromShuttle(*shuttle);
-		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			Gene gene = population[chromIdx][geneIdx];
-			chromShuttle.simulate(gene.rotate, gene.power);
-			populationPaths[chromIdx].push_back(chromShuttle.getPosition());
-
-			if (surface->collisionWithSurface(chromShuttle.getPosition())) {
-				break;
-			}
-		}
-
-		evaluateChromosome(chromIdx, &chromShuttle, surface);
+		population[chromIdx].setShuttle(*shuttle);
+		population[chromIdx].simulate(surface);
+		population[chromIdx].evaluate(surface);
 	}
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-string GeneticPopulation::constructSVGData(int turnsCount) const {
+string GeneticPopulation::constructSVGData() const {
 #ifdef SVG
 	string svgStr = "";
 
-	for (size_t pathIdx = 0; pathIdx < populationPaths.size(); ++pathIdx) {
+	for (size_t chromeIdx = 0; chromeIdx < POPULATION_SIZE; ++chromeIdx) {
 		svgStr.append(POLYLINE_BEGIN);
 
-		for (size_t positionIdx = 0; positionIdx < populationPaths[pathIdx].size() - 1; ++positionIdx) {
-			Coords position = populationPaths[pathIdx][positionIdx];
-			Coords nextPosition = populationPaths[pathIdx][positionIdx + 1];
-
-			Coord startX = position.getXCoord();
-			Coord startY = MAP_HEIGHT - position.getYCoord();
-			Coord endX = nextPosition.getXCoord();
-			Coord endY = MAP_HEIGHT - nextPosition.getYCoord();
-			
-			svgStr.append(to_string(startX));
-			svgStr.append(",");
-			svgStr.append(to_string(startY));
-			svgStr.append(" ");
-			svgStr.append(to_string(endX));
-			svgStr.append(",");
-			svgStr.append(to_string(endY));
-			svgStr.append(" ");
-		}
-
+		string chromeSVGData = population[chromeIdx].constructSVGData();
+		svgStr.append(chromeSVGData);
 		svgStr.append(POLYLINE_END);
 	}
 
@@ -921,14 +989,6 @@ string GeneticPopulation::constructSVGData(int turnsCount) const {
 #endif // SVG
 
 	return "";
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void GeneticPopulation::evaluateChromosome(int chromIdx, Shuttle* chromShuttle, Surface* surface) const {
-	float distanceToLandingZone = surface->findDistanceToLandingZone(chromShuttle->getPosition());
-	
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1103,7 +1163,7 @@ void Game::turnBegin() {
 	geneticPopulation.simulate(shuttle, surface);
 
 #ifdef SVG
-	string populationSVGData = geneticPopulation.constructSVGData(turnsCount);
+	string populationSVGData = geneticPopulation.constructSVGData();
 	svgManager.filePrintStr(populationSVGData);
 #endif // SVG
 }
