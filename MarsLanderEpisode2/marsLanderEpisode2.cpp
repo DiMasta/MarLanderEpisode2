@@ -43,7 +43,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
 const int CHROMOSOME_SIZE = 60;
-const int POPULATION_SIZE = 40;
+const int POPULATION_SIZE = 1;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -230,18 +230,12 @@ public:
 	Line(const Coords& point0, const Coords& point1, int landingZoneDirection);
 	~Line();
 
-	bool pointBelow(const Coords& landerPoint);
-
 	Coords getPoint0() const {
 		return point0;
 	}
 
 	Coords getPoint1() const {
 		return point1;
-	}
-
-	bool getLandingZone() const {
-		return landingZone;
 	}
 
 	int getLandingZoneDirection() const {
@@ -252,18 +246,21 @@ public:
 		return lenght;
 	}
 
-	void setPoint0(Coords point0) { this->point0 = point0; }
-	void setPoint1(Coords point1) { this->point1 = point1; }
-	void setLandingZone(bool landingZone) { this->landingZone = landingZone; }
+	void setPoint0(const Coords& point0) { this->point0 = point0; }
+	void setPoint1(const Coords& point1) { this->point1 = point1; }
 	void setLandingZoneDirection(int landingZoneDirection) { this->landingZoneDirection = landingZoneDirection; }
 	void setLenght(int lenght) { this->lenght = lenght; }
+
+	Coord distanceToPoint(const Coords& point) const;
+	bool pointBelow(const Coords& landerPoint) const;
 
 private:
 	Coords point0;
 	Coords point1;
-	bool landingZone;
 	int landingZoneDirection;
 	int lenght;
+	Coord m;
+	Coord b;
 };
 
 //*************************************************************************************************************
@@ -281,10 +278,18 @@ Line::Line(const Coords& point0, const Coords& point1, int landingZoneDirection)
 	point1(point1),
 	landingZoneDirection(landingZoneDirection)
 {
-	int lineX = static_cast<int>(abs(point0.getXCoord() - point1.getXCoord()));
-	int lineY = static_cast<int>(abs(point0.getYCoord() - point1.getYCoord()));
+	Coord x0 = point0.getXCoord();
+	Coord y0 = point0.getYCoord();
+	Coord x1 = point1.getXCoord();
+	Coord y1 = point1.getYCoord();
+
+	int lineX = static_cast<int>(abs(x0 - x1));
+	int lineY = static_cast<int>(abs(y0 - y1));
 
 	lenght = static_cast<int>(sqrt((lineX * lineX) + (lineY * lineY)));
+
+	m = (y1 - y0) / (x1 - x0);
+	b = y0 - (m * x0);
 }
 
 //*************************************************************************************************************
@@ -297,7 +302,22 @@ Line::~Line() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool Line::pointBelow(const Coords& landerPoint) {
+Coord Line::distanceToPoint(const Coords& point) const {
+	Coord tempLineM = -(1 / m);
+	Coord tempLineB = point.getYCoord() - (tempLineM * point.getXCoord());
+
+	Coord intersectXCoord = (tempLineB - b) / (m - tempLineM);
+	Coord intersectYCoord = (tempLineM * intersectXCoord) + tempLineB;
+
+	Coords intersectionPoint(intersectXCoord, intersectYCoord);
+
+	return distance(point, intersectionPoint);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Line::pointBelow(const Coords& landerPoint) const {
 	bool below = false;
 
 	Coord landerX = landerPoint.getXCoord();
@@ -411,13 +431,14 @@ bool Surface::collisionWithSurface(const Coords& landerPoint) {
 
 void Surface::addLine(const Coords& point0, const Coords& point1, int landingZoneDirection, bool& landingZoneFound) {
 	Line line(point0, point1, landingZoneDirection);
-	lines.push_back(line);
 
 	if (point0.getYCoord() == point1.getYCoord()) {
 		landingZone = line;
 		landingZoneFound = true;
 		line.setLandingZoneDirection(LZD_HERE);
 	}
+
+	lines.push_back(line);
 }
 
 //*************************************************************************************************************
@@ -456,50 +477,57 @@ string Surface::constructSVGData() const {
 //*************************************************************************************************************
 
 float Surface::findDistanceToLandingZone(const Coords& from) const {
-	float distToNearestLinePoint = FLT_MAX;
 	size_t nearestLineIdx = 0;
 	int nearestLineDirToLandingZone = LZD_INVALID;
 
+	Coord minDistToLine = FLT_MAX;
 	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
 		const Line* line = &lines[lineIdx];
-		int dirToLandingZone = line->getLandingZoneDirection();
 
-		Coords pointToCheck = line->getPoint0();
-		if (LZD_RIGHT == dirToLandingZone) {
-			pointToCheck = line->getPoint1();
-		}
-		else if (LZD_HERE == dirToLandingZone) {
-			Coord middle = (line->getPoint1().getXCoord() - line->getPoint0().getXCoord()) / 2.f;
-			pointToCheck.setXCoord(line->getPoint0().getXCoord() + middle);
-			pointToCheck.setYCoord(line->getPoint0().getYCoord());
-		}
+		Coord linePointDistance = line->distanceToPoint(from);
 
-		float distToPint = distance(from, pointToCheck);
-		if (distToPint < distToNearestLinePoint) {
-			distToNearestLinePoint = distToPint;
+		if (linePointDistance < minDistToLine) {
+			minDistToLine = linePointDistance;
 			nearestLineIdx = lineIdx;
-			nearestLineDirToLandingZone = dirToLandingZone;
+			nearestLineDirToLandingZone = line->getLandingZoneDirection();
 		}
 	}
 
-	float distTolandingZone = distToNearestLinePoint;
-	if (LZD_HERE != nearestLineDirToLandingZone) {
-		const Line* line = &lines[nearestLineIdx];
+	const Line* nearestLine = &lines[nearestLineIdx];
+	Coords pointToLandingZone = nearestLine->getPoint0();
+	if (LZD_RIGHT == nearestLineDirToLandingZone) {
+		pointToLandingZone = nearestLine->getPoint1();
+	}
+	else if (LZD_HERE == nearestLineDirToLandingZone) {
+		Coord x0 = nearestLine->getPoint0().getXCoord();
+		Coord y0 = nearestLine->getPoint0().getYCoord();
+		Coord x1 = nearestLine->getPoint1().getXCoord();
 
-		int lineIdx = nearestLineIdx;
-		while (!line->getLandingZone()) {
-			int dirToLandingZone = line->getLandingZoneDirection();
+		pointToLandingZone.setXCoord(x0 + ((x1 - x0) / 2));
+		pointToLandingZone.setYCoord(y0);
+	}
 
-			if (LZD_RIGHT == dirToLandingZone) {
-				++lineIdx;
-			}
-			else {
-				--lineIdx;
-			}
+	float distTolandingZone = distance(from, pointToLandingZone);
+	const Line* line = nearestLine;
 
-			line = &lines[lineIdx];
-			distTolandingZone += line->getLenght();
+	int lineIdx = nearestLineIdx;
+	while (true) {
+		int dirToLandingZone = line->getLandingZoneDirection();
+
+		int lineLenght = line->getLenght();
+		if (LZD_HERE == dirToLandingZone) {
+			distTolandingZone += lineLenght / 2;
+			break;
 		}
+		else if (LZD_RIGHT == dirToLandingZone) {
+			++lineIdx;
+		}
+		else {
+			--lineIdx;
+		}
+
+		line = &lines[lineIdx];
+		distTolandingZone += lineLenght;
 	}
 
 	return distTolandingZone;
@@ -812,8 +840,12 @@ void GeneticPopulation::initRandomPopulation() {
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			int randAngle = rotateDistr(angleEng);
-			int randPower = powerDistr(powerEng);
+			//int randAngle = rotateDistr(angleEng);
+			//int randPower = powerDistr(powerEng);
+
+			// Hardcoded oldschool rand
+			int randAngle = (rand() % 181) - 90;
+			int randPower = (rand() % 5);
 
 			Gene gene(randAngle, randPower);
 			population[chromIdx].push_back(gene);

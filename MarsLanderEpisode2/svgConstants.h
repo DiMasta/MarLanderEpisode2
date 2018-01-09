@@ -9,7 +9,7 @@ static const std::string POLYLINE_END = "\"  style = \"fill:none;stroke:red;stro
 
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\
-<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"700\" height = \"300\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\" onclick = \"clicked(evt)\">\n\
+<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"7000\" height = \"3000\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\" onclick = \"clicked(evt)\">\n\
 ";
 
 static const std::string FILE_END = "\
@@ -38,6 +38,7 @@ function clicked(evt) {\n\
 	var dim = e.getBoundingClientRect();\n\
 	var x = evt.clientX - dim.left;\n\
 	var y = evt.clientY - dim.top;\n\
+	y = 3000 - y;\n\
 	alert(\"x: \" + x + \" y:\" + y);\n\
 }\n\
 \n\
