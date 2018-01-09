@@ -43,7 +43,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
 const int CHROMOSOME_SIZE = 60;
-const int POPULATION_SIZE = 1;
+const int POPULATION_SIZE = 40;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -840,12 +840,12 @@ void GeneticPopulation::initRandomPopulation() {
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			//int randAngle = rotateDistr(angleEng);
-			//int randPower = powerDistr(powerEng);
+			int randAngle = rotateDistr(angleEng);
+			int randPower = powerDistr(powerEng);
 
 			// Hardcoded oldschool rand
-			int randAngle = (rand() % 181) - 90;
-			int randPower = (rand() % 5);
+			//int randAngle = (rand() % 181) - 90;
+			//int randPower = (rand() % 5);
 
 			Gene gene(randAngle, randPower);
 			population[chromIdx].push_back(gene);
