@@ -12,6 +12,7 @@
 #include <math.h>
 #include <fstream>
 #include <random>
+#include <chrono>
 
 #define SVG
 #define REDIRECT_CIN_FROM_FILE
@@ -37,6 +38,8 @@ const int DIRECTIONS_COUNT = 8;
 const int RIGHT_ANGLE = 90;
 
 const float PI = 3.14159265f;
+const float BEST_CHROMOSOMES_PERCENT = .3f;
+const float OTHERS_CHROMOSOMES_PERCENT = .2f;
 
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
@@ -44,6 +47,8 @@ const string OUTPUT_FILE_NAME = "output.txt";
 const float MARS_GRAVITY = 3.711f;
 const int CHROMOSOME_SIZE = 60;
 const int POPULATION_SIZE = 40;
+const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
+const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -826,6 +831,7 @@ public:
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 
 	bool operator<(const Chromosome& chromosome) const;
+	Chromosome& operator=(const Chromosome& other);
 
 	void evaluate(Surface* surface);
 	void addGene(const Gene& gene);
@@ -866,6 +872,22 @@ Chromosome::~Chromosome() {
 
 bool Chromosome::operator<(const Chromosome& chromosome) const {
 	return evaluation < chromosome.evaluation;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Chromosome& Chromosome::operator=(const Chromosome& other) {
+	if (this != &other) {
+		chromosome.clear();
+		path.clear();
+
+		shuttle = other.shuttle;
+		evaluation = other.evaluation;
+		chromosome = other.chromosome;
+		path = other.path;
+	}
+	return *this;
 }
 
 //*************************************************************************************************************
@@ -952,6 +974,8 @@ void Chromosome::simulate(Surface* surface) {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+typedef vector<Chromosome> Chromosomes;
+
 class GeneticPopulation {
 public:
 	GeneticPopulation();
@@ -960,11 +984,13 @@ public:
 	void initRandomPopulation();
 	void simulate(Shuttle* shuttle, Surface* surface);
 	void sortChromosomes();
+	void chooseParents(Chromosomes& parents);
+	void makeNextGeneration();
 
 	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
-	vector<Chromosome> population;
+	Chromosomes population;
 };
 
 //*************************************************************************************************************
@@ -1029,6 +1055,37 @@ void GeneticPopulation::simulate(Shuttle* shuttle, Surface* surface) {
 
 void GeneticPopulation::sortChromosomes() {
 	sort(population.begin(), population.end());
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::chooseParents(Chromosomes& parents) {
+	copy(population.begin(), population.begin() + BEST_CHROMOSOMES_COUNT, parents);
+
+	Chromosomes othersChromosomes(OTHERS_CHROMOSOMES_COUNT);
+	copy(population.begin() + BEST_CHROMOSOMES_COUNT, population.end(), othersChromosomes);
+
+	unsigned seed = static_cast<unsigned>(chrono::system_clock::now().time_since_epoch().count());
+	shuffle(othersChromosomes.begin(), othersChromosomes.end(), default_random_engine(seed));
+
+	othersChromosomes.erase(
+		othersChromosomes.begin() + OTHERS_CHROMOSOMES_COUNT,
+		othersChromosomes.end()
+	);
+
+	parents.insert(parents.end(), othersChromosomes.begin(), othersChromosomes.end());
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::makeNextGeneration() {
+	Chromosomes parents;
+	chooseParents(parents);
+
+	int debug = 0;
+	++debug;
 }
 
 //*************************************************************************************************************
@@ -1221,10 +1278,16 @@ void Game::turnBegin() {
 	geneticPopulation.simulate(shuttle, surface);
 	geneticPopulation.sortChromosomes();
 
+	bool answerFound = false;
+
+	while (!answerFound) {
 #ifdef SVG
-	string populationSVGData = geneticPopulation.constructSVGData(svgManager);
-	svgManager.filePrintStr(populationSVGData);
+		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
+		svgManager.filePrintStr(populationSVGData);
 #endif // SVG
+
+		geneticPopulation.makeNextGeneration();
+	}
 }
 
 //*************************************************************************************************************
