@@ -478,6 +478,7 @@ string Surface::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append("\" ");
 
 	svgStr.append(STYLE_BEGIN);
+	svgStr.append(FILL_NONE);
 	string strokeRGB = svgManager.constructStrokeForRGB(255, 0, 0);
 	svgStr.append(strokeRGB);
 	svgStr.append(";");
@@ -896,7 +897,11 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append("\" ");
 
 	svgStr.append(STYLE_BEGIN);
-	int greenBlueComponent = 255 - (255 / static_cast<int>(evaluation / 100.f));
+	svgStr.append(FILL_NONE);
+
+	int X = static_cast<int>(evaluation / 10) / 3;
+
+	int greenBlueComponent = X;
 	string strokeRGB = svgManager.constructStrokeForRGB(255, greenBlueComponent, greenBlueComponent);
 	svgStr.append(strokeRGB);
 	svgStr.append(";");

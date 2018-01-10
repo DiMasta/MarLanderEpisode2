@@ -12,6 +12,7 @@ static const std::string STROKE = "stroke:";
 static const std::string STROKE_WIDTH = "stroke-width:";
 static const std::string RGB_BEGIN = "rgb(";
 static const std::string RGB_END = ")";
+static const std::string FILL_NONE = "fill:none;";
 
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\
