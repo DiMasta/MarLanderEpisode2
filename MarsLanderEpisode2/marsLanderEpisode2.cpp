@@ -485,7 +485,7 @@ string Surface::constructSVGData(const SVGManager& svgManager) const {
 
 	string strokeWidth = svgManager.constructStrokeWidth(10);
 	svgStr.append(strokeWidth);
-	svgStr.append(STYLE_END);
+	svgStr.append(ATTRIBUTE_END);
 
 	svgStr.append(POLYLINE_END);
 
@@ -896,19 +896,22 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	}
 	svgStr.append("\" ");
 
+	svgStr.append(DATA_EVALUATION);
+	svgStr.append(to_string(evaluation));
+	svgStr.append(ATTRIBUTE_END);
+
 	svgStr.append(STYLE_BEGIN);
 	svgStr.append(FILL_NONE);
 
-	int X = static_cast<int>(evaluation / 10) / 3;
-
-	int greenBlueComponent = X;
-	string strokeRGB = svgManager.constructStrokeForRGB(255, greenBlueComponent, greenBlueComponent);
+	string strokeRGB = svgManager.constructStrokeForRGB(255, 0, 0);
 	svgStr.append(strokeRGB);
 	svgStr.append(";");
 
 	string strokeWidth = svgManager.constructStrokeWidth(10);
 	svgStr.append(strokeWidth);
-	svgStr.append(STYLE_END);
+	svgStr.append(ATTRIBUTE_END);
+
+	svgStr.append(ONCLICK_DISPLAY_DATA);
 
 	svgStr.append(POLYLINE_END);
 

@@ -7,16 +7,18 @@ static const std::string SVG_HTML_FILE_NAME = "visualDebugTool.html";
 static const std::string POLYLINE_BEGIN = "	<polyline points = \"";
 static const std::string POLYLINE_END = " />\n";
 static const std::string STYLE_BEGIN = "style = \"";
-static const std::string STYLE_END = "\"";
+static const std::string ATTRIBUTE_END = "\"";
 static const std::string STROKE = "stroke:";
 static const std::string STROKE_WIDTH = "stroke-width:";
 static const std::string RGB_BEGIN = "rgb(";
 static const std::string RGB_END = ")";
 static const std::string FILL_NONE = "fill:none;";
+static const std::string ONCLICK_DISPLAY_DATA = "onclick=\"displayData(event)\"";
+static const std::string DATA_EVALUATION = "data-evaluation=\"";
 
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\
-<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"7000\" height = \"3000\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\" onclick = \"clicked(evt)\">\n\
+<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"7000\" height = \"3000\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\">\n\
 ";
 
 static const std::string FILE_END = "\
@@ -47,6 +49,11 @@ function clicked(evt) {\n\
 	var y = evt.clientY - dim.top;\n\
 	y = 3000 - y;\n\
 	alert(\"x: \" + x + \" y:\" + y);\n\
+}\n\
+\n\
+function displayData(event) {\n\
+	var evaluation = event.target.getAttributeNS(null, \"data-evaluation\");\n\
+	alert(\"Evaluation: \" + evaluation);\n\
 }\n\
 \n\
 </script>\n\
