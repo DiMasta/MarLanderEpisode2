@@ -15,6 +15,10 @@ public:
 	void fileDone();
 	void fileClose();
 	void filePrintStr(std::string strToPrint);
+
+	std::string constructStrokeForRGB(int r, int g, int b) const;
+	std::string constructStrokeWidth(int width) const;
+
 private:
 	std::ofstream svgHtmlFileStream;
 };

@@ -43,7 +43,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
 const int CHROMOSOME_SIZE = 60;
-const int POPULATION_SIZE = 1;
+const int POPULATION_SIZE = 40;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -377,8 +377,9 @@ public:
 		bool& landingZoneFound
 	);
 
-	string constructSVGData() const;
 	float findDistanceToLandingZone(const Coords& from) const;
+
+	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
 	Lines lines;
@@ -454,7 +455,7 @@ void Surface::addLine(
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-string Surface::constructSVGData() const {
+string Surface::constructSVGData(const SVGManager& svgManager) const {
 #ifdef SVG
 	string svgStr = POLYLINE_BEGIN;
 
@@ -474,6 +475,16 @@ string Surface::constructSVGData() const {
 		svgStr.append(to_string(endY));
 		svgStr.append(" ");
 	}
+	svgStr.append("\" ");
+
+	svgStr.append(STYLE_BEGIN);
+	string strokeRGB = svgManager.constructStrokeForRGB(255, 0, 0);
+	svgStr.append(strokeRGB);
+	svgStr.append(";");
+
+	string strokeWidth = svgManager.constructStrokeWidth(10);
+	svgStr.append(strokeWidth);
+	svgStr.append(STYLE_END);
 
 	svgStr.append(POLYLINE_END);
 
@@ -815,10 +826,11 @@ public:
 
 	bool operator<(const Chromosome& chromosome) const;
 
-	string constructSVGData() const;
 	void evaluate(Surface* surface);
 	void addGene(const Gene& gene);
 	void simulate(Surface* surface);
+
+	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
 	Shuttle shuttle;
@@ -858,8 +870,10 @@ bool Chromosome::operator<(const Chromosome& chromosome) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-string Chromosome::constructSVGData() const {
+string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = "";
+
+	svgStr.append(POLYLINE_BEGIN);
 
 	for (size_t positionIdx = 0; positionIdx < path.size() - 1; ++positionIdx) {
 		Coords position = path[positionIdx];
@@ -879,6 +893,19 @@ string Chromosome::constructSVGData() const {
 		svgStr.append(to_string(endY));
 		svgStr.append(" ");
 	}
+	svgStr.append("\" ");
+
+	svgStr.append(STYLE_BEGIN);
+	int greenBlueComponent = 255 - (255 / static_cast<int>(evaluation / 100.f));
+	string strokeRGB = svgManager.constructStrokeForRGB(255, greenBlueComponent, greenBlueComponent);
+	svgStr.append(strokeRGB);
+	svgStr.append(";");
+
+	string strokeWidth = svgManager.constructStrokeWidth(10);
+	svgStr.append(strokeWidth);
+	svgStr.append(STYLE_END);
+
+	svgStr.append(POLYLINE_END);
 
 	return svgStr;
 }
@@ -926,7 +953,7 @@ public:
 	void simulate(Shuttle* shuttle, Surface* surface);
 	void sortChromosomes();
 
-	string constructSVGData() const;
+	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
 	vector<Chromosome> population;
@@ -999,16 +1026,13 @@ void GeneticPopulation::sortChromosomes() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-string GeneticPopulation::constructSVGData() const {
+string GeneticPopulation::constructSVGData(const SVGManager& svgManager) const {
 #ifdef SVG
 	string svgStr = "";
 
 	for (size_t chromeIdx = 0; chromeIdx < POPULATION_SIZE; ++chromeIdx) {
-		svgStr.append(POLYLINE_BEGIN);
-
-		string chromeSVGData = population[chromeIdx].constructSVGData();
+		string chromeSVGData = population[chromeIdx].constructSVGData(svgManager);
 		svgStr.append(chromeSVGData);
-		svgStr.append(POLYLINE_END);
 	}
 
 	return svgStr;
@@ -1098,7 +1122,7 @@ void Game::gameBegin() {
 	geneticPopulation.initRandomPopulation();
 
 #ifdef SVG
-	string surfaceSVGData = surface->constructSVGData();
+	string surfaceSVGData = surface->constructSVGData(svgManager);
 	svgManager.filePrintStr(surfaceSVGData);
 #endif // SVG
 }
@@ -1190,7 +1214,7 @@ void Game::turnBegin() {
 	geneticPopulation.sortChromosomes();
 
 #ifdef SVG
-	string populationSVGData = geneticPopulation.constructSVGData();
+	string populationSVGData = geneticPopulation.constructSVGData(svgManager);
 	svgManager.filePrintStr(populationSVGData);
 #endif // SVG
 }

@@ -5,7 +5,13 @@
 
 static const std::string SVG_HTML_FILE_NAME = "visualDebugTool.html";
 static const std::string POLYLINE_BEGIN = "	<polyline points = \"";
-static const std::string POLYLINE_END = "\"  style = \"fill:none;stroke:red;stroke-width:10\" />\n";
+static const std::string POLYLINE_END = " />\n";
+static const std::string STYLE_BEGIN = "style = \"";
+static const std::string STYLE_END = "\"";
+static const std::string STROKE = "stroke:";
+static const std::string STROKE_WIDTH = "stroke-width:";
+static const std::string RGB_BEGIN = "rgb(";
+static const std::string RGB_END = ")";
 
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\

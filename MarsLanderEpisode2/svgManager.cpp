@@ -43,3 +43,28 @@ void SVGManager::fileClose() {
 void SVGManager::filePrintStr(string strToPrint) {
 	svgHtmlFileStream << strToPrint;
 }
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+string SVGManager::constructStrokeForRGB(int r, int g, int b) const {
+	string res = STROKE;
+	res.append(RGB_BEGIN);
+	res.append(to_string(r));
+	res.append(",");
+	res.append(to_string(g));
+	res.append(",");
+	res.append(to_string(b));
+	res.append(RGB_END);
+
+	return res;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+string SVGManager::constructStrokeWidth(int width) const {
+	string res = STROKE_WIDTH;
+	res.append(to_string(width));
+	return res;
+}
