@@ -43,7 +43,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
 const int CHROMOSOME_SIZE = 60;
-const int POPULATION_SIZE = 40;
+const int POPULATION_SIZE = 1;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -370,7 +370,12 @@ public:
 	int getLinesCount() const;
 	Line getLine(int lineIdx) const;
 	bool collisionWithSurface(const Coords& landerPoint);
-	void addLine(const Coords& point0, const Coords& point1, int landingZoneDirection, bool& landingZoneFound);
+	void addLine(
+		const Coords& point0,
+		const Coords& point1,
+		int landingZoneDirection,
+		bool& landingZoneFound
+	);
 
 	string constructSVGData() const;
 	float findDistanceToLandingZone(const Coords& from) const;
@@ -429,7 +434,12 @@ bool Surface::collisionWithSurface(const Coords& landerPoint) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Surface::addLine(const Coords& point0, const Coords& point1, int landingZoneDirection, bool& landingZoneFound) {
+void Surface::addLine(
+	const Coords& point0,
+	const Coords& point1,
+	int landingZoneDirection,
+	bool& landingZoneFound
+) {
 	Line line(point0, point1, landingZoneDirection);
 
 	if (point0.getYCoord() == point1.getYCoord()) {
@@ -512,21 +522,21 @@ float Surface::findDistanceToLandingZone(const Coords& from) const {
 
 	int lineIdx = nearestLineIdx;
 	while (true) {
-		int dirToLandingZone = line->getLandingZoneDirection();
-
-		int lineLenght = line->getLenght();
-		if (LZD_HERE == dirToLandingZone) {
-			distTolandingZone += lineLenght / 2;
-			break;
-		}
-		else if (LZD_RIGHT == dirToLandingZone) {
+		if (LZD_RIGHT == line->getLandingZoneDirection()) {
 			++lineIdx;
 		}
-		else {
+		else if (LZD_LEFT) {
 			--lineIdx;
 		}
 
 		line = &lines[lineIdx];
+		int lineLenght = line->getLenght();
+		
+		if (LZD_HERE == line->getLandingZoneDirection()) {
+			distTolandingZone += lineLenght / 2;
+			break;
+		}
+
 		distTolandingZone += lineLenght;
 	}
 
@@ -803,8 +813,10 @@ public:
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 
+	bool operator<(const Chromosome& chromosome) const;
+
 	string constructSVGData() const;
-	void evaluate(Surface* surface) const;
+	void evaluate(Surface* surface);
 	void addGene(const Gene& gene);
 	void simulate(Surface* surface);
 
@@ -839,6 +851,13 @@ Chromosome::~Chromosome() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+bool Chromosome::operator<(const Chromosome& chromosome) const {
+	return evaluation < chromosome.evaluation;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 string Chromosome::constructSVGData() const {
 	string svgStr = "";
 
@@ -867,9 +886,8 @@ string Chromosome::constructSVGData() const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::evaluate(Surface* surface) const {
-	float distanceToLandingZone = surface->findDistanceToLandingZone(shuttle.getPosition());
-
+void Chromosome::evaluate(Surface* surface) {
+	evaluation = surface->findDistanceToLandingZone(shuttle.getPosition());
 }
 
 //*************************************************************************************************************
@@ -906,6 +924,7 @@ public:
 
 	void initRandomPopulation();
 	void simulate(Shuttle* shuttle, Surface* surface);
+	void sortChromosomes();
 
 	string constructSVGData() const;
 
@@ -941,12 +960,12 @@ void GeneticPopulation::initRandomPopulation() {
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			int randAngle = rotateDistr(angleEng);
-			int randPower = powerDistr(powerEng);
+			//int randAngle = rotateDistr(angleEng);
+			//int randPower = powerDistr(powerEng);
 
 			// Hardcoded oldschool rand
-			//int randAngle = (rand() % 181) - 90;
-			//int randPower = (rand() % 5);
+			int randAngle = (rand() % 181) - 90;
+			int randPower = (rand() % 5);
 
 			Gene gene(randAngle, randPower);
 			population[chromIdx].addGene(gene);
@@ -968,6 +987,13 @@ void GeneticPopulation::simulate(Shuttle* shuttle, Surface* surface) {
 		population[chromIdx].simulate(surface);
 		population[chromIdx].evaluate(surface);
 	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::sortChromosomes() {
+	sort(population.begin(), population.end());
 }
 
 //*************************************************************************************************************
@@ -1161,6 +1187,7 @@ void Game::getTurnInput() {
 
 void Game::turnBegin() {
 	geneticPopulation.simulate(shuttle, surface);
+	geneticPopulation.sortChromosomes();
 
 #ifdef SVG
 	string populationSVGData = geneticPopulation.constructSVGData();
