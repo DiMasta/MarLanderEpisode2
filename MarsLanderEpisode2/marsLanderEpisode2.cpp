@@ -46,12 +46,12 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const float MARS_GRAVITY = 3.711f;
-const int CHROMOSOME_SIZE = 60;
-const int POPULATION_SIZE = 40;
+const int CHROMOSOME_SIZE = 50;
+const int POPULATION_SIZE = 10;
 const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
-const int CHILDREN_COUNT = 4;
-const int CROSSOVER_POINT = POPULATION_SIZE / 2;
+const int CHILDREN_COUNT = POPULATION_SIZE / 5;
+const int CROSSOVER_POINT = CHROMOSOME_SIZE / 2;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -855,10 +855,15 @@ public:
 		return path;
 	}
 
+	bool getIsChild() const {
+		return isChild;
+	}
+
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 	void setPath(const Path& path) { this->path = path; }
+	void setIsChild(bool isChild) { this->isChild = isChild; }
 
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
@@ -874,6 +879,7 @@ public:
 private:
 	Shuttle shuttle;
 	float evaluation;
+	bool isChild;
 
 	Genes chromosome;
 	Path path;
@@ -886,7 +892,8 @@ Chromosome::Chromosome() :
 	shuttle(),
 	evaluation(0.f),
 	chromosome(),
-	path()
+	path(),
+	isChild(false)
 {
 
 }
@@ -958,6 +965,9 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append(FILL_NONE);
 
 	string strokeRGB = svgManager.constructStrokeForRGB(255, 0, 0);
+	if (isChild) {
+		strokeRGB = svgManager.constructStrokeForRGB(0, 255, 0);
+	}
 	svgStr.append(strokeRGB);
 	svgStr.append(";");
 
@@ -997,7 +1007,9 @@ Gene Chromosome::getGene(int geneIdx) const {
 //*************************************************************************************************************
 
 void Chromosome::simulate(Surface* surface) {
-	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+	path.clear();
+
+	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
 		path.push_back(shuttle.getPosition());
@@ -1077,7 +1089,7 @@ void GeneticPopulation::initRandomPopulation() {
 	mt19937 powerEng(powerRd());
 	uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
 
-	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 			int randAngle = rotateDistr(angleEng);
 			int randPower = powerDistr(powerEng);
@@ -1152,6 +1164,7 @@ void GeneticPopulation::makeChildren(Chromosomes& parents, Chromosomes& children
 		Chromosome child;
 		crossover(*parent0, *parent1, child);
 		child.mutate();
+		child.setIsChild(true);
 		children.push_back(child);
 	}
 }
@@ -1388,6 +1401,8 @@ void Game::turnBegin() {
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
 		string populationIdSVGData = svgManager.constructGId(populationId);
 		svgManager.filePrintStr(populationIdSVGData);
+		svgManager.filePrintStr(DISPLAY_NONE);
+		svgManager.filePrintStr(ID_END);
 		svgManager.filePrintStr(populationSVGData);
 		svgManager.filePrintStr(GROUP_END);
 #endif // SVG
