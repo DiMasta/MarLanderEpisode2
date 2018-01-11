@@ -1001,7 +1001,8 @@ public:
 	void simulate(Shuttle* shuttle, Surface* surface);
 	void sortChromosomes();
 	void chooseParents(Chromosomes& parents);
-	void makeChildren(const Chromosomes& parents, Chromosomes& children);
+	void makeChildren(Chromosomes& parents, Chromosomes& children);
+	void crossover(const Chromosome& parent0, const Chromosome& parent1, Chromosome& child);
 	void makeNextGeneration();
 
 	string constructSVGData(const SVGManager& svgManager) const;
@@ -1097,9 +1098,31 @@ void GeneticPopulation::chooseParents(Chromosomes& parents) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::makeChildren(const Chromosomes& parents, Chromosomes& children) {
-	for (int childIdx = 0; childIdx < CHILDREN_COUNT; ++childIdx) {
+void GeneticPopulation::makeChildren(Chromosomes& parents, Chromosomes& children) {
+	unsigned seed = static_cast<unsigned>(chrono::system_clock::now().time_since_epoch().count());
+	shuffle(parents.begin(), parents.end(), default_random_engine(seed));
 
+	int chosenParentsCount = 2 * CHILDREN_COUNT;
+	Chromosomes chosenParents(parents.begin(), parents.begin() + chosenParentsCount);
+
+	for (int childIdx = 0; childIdx < CHILDREN_COUNT; ++childIdx) {
+		Chromosome* parent0 = &chosenParents[childIdx * 2];
+		Chromosome* parent1 = &chosenParents[(childIdx * 2) + 1];
+
+		Chromosome child;
+		crossover(*parent0, *parent1, child);
+		children.push_back(child);
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::crossover(const Chromosome& parent0, const Chromosome& parent1, Chromosome& child) {
+	vector<Gene> childGenes;
+
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+		//Gene* gene = &parent0.getGene(geneIdx);
 	}
 }
 
