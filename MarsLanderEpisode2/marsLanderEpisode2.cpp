@@ -51,6 +51,7 @@ const int POPULATION_SIZE = 40;
 const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 const int CHILDREN_COUNT = 4;
+const int CROSSOVER_POINT = POPULATION_SIZE / 2;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -830,6 +831,9 @@ Gene& Gene::operator=(const Gene& other) {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+typedef vector<Gene> Genes;
+typedef vector<Coords> Path;
+
 class Chromosome {
 public:
 	Chromosome();
@@ -843,15 +847,27 @@ public:
 		return evaluation;
 	}
 
+	Genes getChromosome() const {
+		return chromosome;
+	}
+
+	Path getPath() const {
+		return path;
+	}
+
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
+	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
+	void setPath(const Path& path) { this->path = path; }
 
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
 
 	void evaluate(Surface* surface);
 	void addGene(const Gene& gene);
+	Gene getGene(int geneIdx) const;
 	void simulate(Surface* surface);
+	void mutate();
 
 	string constructSVGData(const SVGManager& svgManager) const;
 
@@ -859,8 +875,8 @@ private:
 	Shuttle shuttle;
 	float evaluation;
 
-	vector<Gene> chromosome;
-	vector<Coords> path;
+	Genes chromosome;
+	Path path;
 };
 
 //*************************************************************************************************************
@@ -973,6 +989,13 @@ void Chromosome::addGene(const Gene& gene) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+Gene Chromosome::getGene(int geneIdx) const {
+	return chromosome[geneIdx];
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void Chromosome::simulate(Surface* surface) {
 	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
@@ -983,6 +1006,15 @@ void Chromosome::simulate(Surface* surface) {
 			break;
 		}
 	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::mutate() {
+	int randGeneIdx = rand() % chromosome.size();
+	chromosome[randGeneIdx].rotate = (rand() % (MAX_ROTATION_ANGLE * 2)) - MAX_ROTATION_ANGLE;
+	chromosome[randGeneIdx].power = (rand() % (MAX_POWER * 2)) - MAX_POWER;
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -997,8 +1029,14 @@ public:
 	GeneticPopulation();
 	~GeneticPopulation();
 
+	Surface getSurface() const {
+		return surface;
+	}
+
+	void setSurface(const Surface& surface) { this->surface = surface; }
+
 	void initRandomPopulation();
-	void simulate(Shuttle* shuttle, Surface* surface);
+	void simulate(Shuttle* shuttle);
 	void sortChromosomes();
 	void chooseParents(Chromosomes& parents);
 	void makeChildren(Chromosomes& parents, Chromosomes& children);
@@ -1009,13 +1047,15 @@ public:
 
 private:
 	Chromosomes population;
+	Surface surface;
 };
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 GeneticPopulation::GeneticPopulation() :
-	population(POPULATION_SIZE)
+	population(POPULATION_SIZE),
+	surface()
 {
 }
 
@@ -1039,12 +1079,12 @@ void GeneticPopulation::initRandomPopulation() {
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			//int randAngle = rotateDistr(angleEng);
-			//int randPower = powerDistr(powerEng);
+			int randAngle = rotateDistr(angleEng);
+			int randPower = powerDistr(powerEng);
 
 			// Hardcoded oldschool rand
-			int randAngle = (rand() % 181) - 90;
-			int randPower = (rand() % 5);
+			//int randAngle = (rand() % 181) - 90;
+			//int randPower = (rand() % 5);
 
 			Gene gene(randAngle, randPower);
 			population[chromIdx].addGene(gene);
@@ -1060,11 +1100,11 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::simulate(Shuttle* shuttle, Surface* surface) {
+void GeneticPopulation::simulate(Shuttle* shuttle) {
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		population[chromIdx].setShuttle(*shuttle);
-		population[chromIdx].simulate(surface);
-		population[chromIdx].evaluate(surface);
+		population[chromIdx].simulate(&surface);
+		population[chromIdx].evaluate(&surface);
 	}
 }
 
@@ -1111,6 +1151,7 @@ void GeneticPopulation::makeChildren(Chromosomes& parents, Chromosomes& children
 
 		Chromosome child;
 		crossover(*parent0, *parent1, child);
+		child.mutate();
 		children.push_back(child);
 	}
 }
@@ -1119,11 +1160,19 @@ void GeneticPopulation::makeChildren(Chromosomes& parents, Chromosomes& children
 //*************************************************************************************************************
 
 void GeneticPopulation::crossover(const Chromosome& parent0, const Chromosome& parent1, Chromosome& child) {
-	vector<Gene> childGenes;
+	Genes childGenes;
 
 	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-		//Gene* gene = &parent0.getGene(geneIdx);
+		Gene* gene = &parent0.getGene(geneIdx);
+
+		if (geneIdx >= CROSSOVER_POINT) {
+			gene = &parent1.getGene(geneIdx);
+		}
+
+		childGenes.push_back(*gene);
 	}
+
+	child.setChromosome(childGenes);
 }
 
 //*************************************************************************************************************
@@ -1136,8 +1185,9 @@ void GeneticPopulation::makeNextGeneration() {
 	Chromosomes children;
 	makeChildren(parents, children);
 
-	int debug = 0;
-	++debug;
+	population.clear();
+	population = parents;
+	population.insert(population.end(), children.begin(), children.end());
 }
 
 //*************************************************************************************************************
@@ -1236,6 +1286,7 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
+	geneticPopulation.setSurface(*surface);
 	geneticPopulation.initRandomPopulation();
 
 #ifdef SVG
@@ -1327,19 +1378,23 @@ void Game::getTurnInput() {
 //*************************************************************************************************************
 
 void Game::turnBegin() {
-	geneticPopulation.simulate(shuttle, surface);
-	geneticPopulation.sortChromosomes();
-
 	bool answerFound = false;
 
-	//while (!answerFound) {
+	int test = 0;
+	while (!answerFound) {
+		geneticPopulation.simulate(shuttle);
+		geneticPopulation.sortChromosomes();
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
 		svgManager.filePrintStr(populationSVGData);
 #endif // SVG
 
 		geneticPopulation.makeNextGeneration();
-	//}
+
+		if (1 == test++) {
+			break;
+		}
+	}
 }
 
 //*************************************************************************************************************
