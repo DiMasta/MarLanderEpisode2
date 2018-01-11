@@ -13,6 +13,7 @@
 #include <fstream>
 #include <random>
 #include <chrono>
+#include <iterator>
 
 #define SVG
 #define REDIRECT_CIN_FROM_FILE
@@ -784,6 +785,8 @@ struct Gene {
 	Gene();
 	Gene(int rotate, int power);
 
+	Gene& operator=(const Gene& other);
+
 	int rotate;
 	int power;
 };
@@ -807,6 +810,18 @@ Gene::Gene(
 	rotate(rotate),
 	power(power)
 {
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Gene& Gene::operator=(const Gene& other) {
+	if (this != &other) {
+		rotate = other.rotate;
+		power = other.power;
+	}
+
+	return *this;
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1061,10 +1076,10 @@ void GeneticPopulation::sortChromosomes() {
 //*************************************************************************************************************
 
 void GeneticPopulation::chooseParents(Chromosomes& parents) {
-	copy(population.begin(), population.begin() + BEST_CHROMOSOMES_COUNT, parents);
+	copy(population.begin(), population.begin() + BEST_CHROMOSOMES_COUNT, back_inserter(parents));
 
-	Chromosomes othersChromosomes(OTHERS_CHROMOSOMES_COUNT);
-	copy(population.begin() + BEST_CHROMOSOMES_COUNT, population.end(), othersChromosomes);
+	Chromosomes othersChromosomes;
+	copy(population.begin() + BEST_CHROMOSOMES_COUNT, population.end(), back_inserter(othersChromosomes));
 
 	unsigned seed = static_cast<unsigned>(chrono::system_clock::now().time_since_epoch().count());
 	shuffle(othersChromosomes.begin(), othersChromosomes.end(), default_random_engine(seed));
