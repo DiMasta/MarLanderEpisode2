@@ -50,6 +50,7 @@ const int CHROMOSOME_SIZE = 60;
 const int POPULATION_SIZE = 40;
 const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
+const int CHILDREN_COUNT = 4;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -1000,6 +1001,7 @@ public:
 	void simulate(Shuttle* shuttle, Surface* surface);
 	void sortChromosomes();
 	void chooseParents(Chromosomes& parents);
+	void makeChildren(const Chromosomes& parents, Chromosomes& children);
 	void makeNextGeneration();
 
 	string constructSVGData(const SVGManager& svgManager) const;
@@ -1095,9 +1097,21 @@ void GeneticPopulation::chooseParents(Chromosomes& parents) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+void GeneticPopulation::makeChildren(const Chromosomes& parents, Chromosomes& children) {
+	for (int childIdx = 0; childIdx < CHILDREN_COUNT; ++childIdx) {
+
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void GeneticPopulation::makeNextGeneration() {
 	Chromosomes parents;
 	chooseParents(parents);
+
+	Chromosomes children;
+	makeChildren(parents, children);
 
 	int debug = 0;
 	++debug;
@@ -1295,14 +1309,14 @@ void Game::turnBegin() {
 
 	bool answerFound = false;
 
-	while (!answerFound) {
+	//while (!answerFound) {
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
 		svgManager.filePrintStr(populationSVGData);
 #endif // SVG
 
 		geneticPopulation.makeNextGeneration();
-	}
+	//}
 }
 
 //*************************************************************************************************************
