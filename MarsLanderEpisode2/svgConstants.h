@@ -15,6 +15,9 @@ static const std::string RGB_END = ")";
 static const std::string FILL_NONE = "fill:none;";
 static const std::string ONCLICK_DISPLAY_DATA = "onclick=\"displayData(event)\"";
 static const std::string DATA_EVALUATION = "data-evaluation=\"";
+static const std::string ID_BEGIN = "<g id=\"turn";
+static const std::string ID_END = "\">\n";
+static const std::string GROUP_END = "</g>\n\n";
 
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\

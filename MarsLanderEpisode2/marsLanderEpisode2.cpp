@@ -1101,7 +1101,7 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 
 void GeneticPopulation::simulate(Shuttle* shuttle) {
-	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		population[chromIdx].setShuttle(*shuttle);
 		population[chromIdx].simulate(&surface);
 		population[chromIdx].evaluate(&surface);
@@ -1197,7 +1197,7 @@ string GeneticPopulation::constructSVGData(const SVGManager& svgManager) const {
 #ifdef SVG
 	string svgStr = "";
 
-	for (size_t chromeIdx = 0; chromeIdx < POPULATION_SIZE; ++chromeIdx) {
+	for (size_t chromeIdx = 0; chromeIdx < population.size(); ++chromeIdx) {
 		string chromeSVGData = population[chromeIdx].constructSVGData(svgManager);
 		svgStr.append(chromeSVGData);
 	}
@@ -1380,18 +1380,21 @@ void Game::getTurnInput() {
 void Game::turnBegin() {
 	bool answerFound = false;
 
-	int test = 0;
+	int populationId = 0;
 	while (!answerFound) {
 		geneticPopulation.simulate(shuttle);
 		geneticPopulation.sortChromosomes();
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
+		string populationIdSVGData = svgManager.constructGId(populationId);
+		svgManager.filePrintStr(populationIdSVGData);
 		svgManager.filePrintStr(populationSVGData);
+		svgManager.filePrintStr(GROUP_END);
 #endif // SVG
 
 		geneticPopulation.makeNextGeneration();
 
-		if (1 == test++) {
+		if (1 == populationId++) {
 			break;
 		}
 	}

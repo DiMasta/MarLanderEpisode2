@@ -68,3 +68,13 @@ string SVGManager::constructStrokeWidth(int width) const {
 	res.append(to_string(width));
 	return res;
 }
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+std::string SVGManager::constructGId(int id) const {
+	string res = ID_BEGIN;
+	res.append(to_string(id));
+	res.append(ID_END);
+	return res;
+}
