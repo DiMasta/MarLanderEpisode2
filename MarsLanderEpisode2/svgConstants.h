@@ -28,15 +28,15 @@ static const std::string FILE_START = "\
 static const std::string FILE_END = "\
 </svg>\n\
 \n\
-<button onclick = \"showNextTurnData()\">Next Turn</button>\n\
-<button onclick = \"showPreviousTurnData()\">Previous Turn</button>\n\
-<button onclick = \"Whole Game\">Whole Game</button>\n\
+<button onclick = \"showNextSim()\">Next Sim</button>\n\
+<button onclick = \"showPreviousSim()\">Previous Sim</button>\n\
+<button onclick = \"wholeSimulation(0)\">Whole Sim</button>\n\
 \n\
 <script>\n\
 \n\
 var turn = 0;\n\
 var turnStr = \"turn\";\n\
-function showNextTurnData() {\n\
+function showNextSim() {\n\
 	if (turn > 0) {\n\
 		var previousTurnElementId = turnStr + (turn - 1);\n\
 		document.getElementById(previousTurnElementId).style.display = \"none\";\n\
@@ -47,7 +47,7 @@ function showNextTurnData() {\n\
 	++turn;\n\
 }\n\
 \n\
-function showPreviousTurnData() {\n\
+function showPreviousSim() {\n\
 	--turn;\n\
 	var currentTurnElementId = turnStr + turn;\n\
 	document.getElementById(currentTurnElementId).style.display = \"none\";\n\
@@ -56,6 +56,26 @@ function showPreviousTurnData() {\n\
 		var previousTurnElementId = turnStr + (turn - 1);\n\
 		document.getElementById(previousTurnElementId).style.display = \"block\";\n\
 	}\n\
+}\n\
+\n\
+function wholeSimulation(groupIdx) {\n\
+	setTimeout(function() {\n\
+		var currentTurnElementId = turnStr + groupIdx;\n\
+		var element = document.getElementById(currentTurnElementId);\n\
+\n\
+		if (element === null) {\n\
+			return;\n\
+		}\n\
+\n\
+		if (groupIdx > 0) {\n\
+			var previousTurnElementId = turnStr + (groupIdx - 1);\n\
+			document.getElementById(previousTurnElementId).style.display = \"none\";\n\
+		}\n\
+\n\
+		element.style.display =\"block\";\n\
+\n\
+		wholeSimulation(++groupIdx);\n\
+	}, 500);\n\
 }\n\
 \n\
 function clicked(evt) {\n\

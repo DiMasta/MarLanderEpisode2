@@ -19,9 +19,9 @@
 
 </svg>
 
-<button onclick="showNextTurnData()">Next Turn</button>
-<button onclick="showPreviousTurnData()">Previous Turn</button>
-<button onclick="Whole Game">Whole Game</button>
+<button onclick = "showNextTurnData()">Next Sim</button>
+<button onclick = "showPreviousTurnData()">Previous Sim</button>
+<button onclick = "wholeSimulation(0)">Whole Sim</button>
 
 <script>
 
@@ -56,5 +56,25 @@ function clicked(evt){
 	var x = evt.clientX - dim.left;
 	var y = evt.clientY - dim.top;
 	alert("x: " + x + " y:" + y);
+}
+
+function wholeSimulation(groupIdx) {
+	setTimeout(function(){
+		var currentTurnElementId = turnStr + groupIdx;
+		var element = document.getElementById(currentTurnElementId);
+		
+		if (element === null) {
+			return;
+		}
+		
+		if (groupIdx > 0) {
+			var previousTurnElementId = turnStr + (groupIdx - 1);
+			document.getElementById(previousTurnElementId).style.display = "none";
+		}
+				
+		element.style.display = "block";	
+
+		wholeSimulation(++groupIdx);		
+	}, 1000);
 }
 </script>

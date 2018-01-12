@@ -27,6 +27,7 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
+const bool USE_OLDSCHOOL_RAND = 0;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
@@ -48,9 +49,10 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;
 const int POPULATION_SIZE = 40;
-const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
-const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
-const int CHILDREN_COUNT = POPULATION_SIZE / 5;
+const int MAX_POPULATION = 200;
+//const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
+//const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
+//const int CHILDREN_COUNT = POPULATION_SIZE / 5;
 const int CROSSOVER_POINT = CHROMOSOME_SIZE / 2;
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -1049,11 +1051,12 @@ public:
 	void setSurface(const Surface& surface) { this->surface = surface; }
 
 	void initRandomPopulation();
-	void simulate(Shuttle* shuttle);
+	bool simulate(Shuttle* shuttle);
 	void sortChromosomes();
 	void chooseParents(Chromosomes& parents);
 	void makeChildren(Chromosomes& parents, Chromosomes& children);
 	void crossover(const Chromosome& parent0, const Chromosome& parent1, Chromosome& child);
+	void resetChildFlags();
 	void makeNextGeneration();
 
 	string constructSVGData(const SVGManager& svgManager) const;
@@ -1092,12 +1095,17 @@ void GeneticPopulation::initRandomPopulation() {
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			//int randAngle = rotateDistr(angleEng);
-			//int randPower = powerDistr(powerEng);
+			int randAngle = 0;
+			int randPower = 0;
 
-			// Hardcoded oldschool rand
-			int randAngle = (rand() % 181) - 90;
-			int randPower = (rand() % 5);
+			if (USE_OLDSCHOOL_RAND) {
+				randAngle = (rand() % 181) - 90;
+				randPower = (rand() % 5);
+			}
+			else {
+				randAngle = rotateDistr(angleEng);
+				randPower = powerDistr(powerEng);
+			}
 
 			Gene gene(randAngle, randPower);
 			population[chromIdx].addGene(gene);
@@ -1113,12 +1121,29 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::simulate(Shuttle* shuttle) {
+bool GeneticPopulation::simulate(Shuttle* shuttle) {
+	bool foundResChromosome = false;
+
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
-		population[chromIdx].setShuttle(*shuttle);
-		population[chromIdx].simulate(&surface);
-		population[chromIdx].evaluate(&surface);
+		Chromosome* chromosome = &population[chromIdx];
+		bool chromosomePosAlredyCalced = chromosome->getShuttle().getPosition().isValid();
+
+		if (!chromosome->getIsChild() && chromosomePosAlredyCalced) {
+			continue;
+		}
+
+		chromosome->setShuttle(*shuttle);
+		chromosome->simulate(&surface);
+		chromosome->evaluate(&surface);
+
+		float evaluation = chromosome->getEvaluation();
+		if (evaluation < 50.f) {
+			foundResChromosome = true;
+			break;
+		}
 	}
+
+	return foundResChromosome;
 }
 
 //*************************************************************************************************************
@@ -1132,6 +1157,7 @@ void GeneticPopulation::sortChromosomes() {
 //*************************************************************************************************************
 
 void GeneticPopulation::chooseParents(Chromosomes& parents) {
+	int BEST_CHROMOSOMES_COUNT = static_cast<int>(population.size() * BEST_CHROMOSOMES_PERCENT);
 	copy(population.begin(), population.begin() + BEST_CHROMOSOMES_COUNT, back_inserter(parents));
 
 	Chromosomes othersChromosomes;
@@ -1140,6 +1166,7 @@ void GeneticPopulation::chooseParents(Chromosomes& parents) {
 	unsigned seed = static_cast<unsigned>(chrono::system_clock::now().time_since_epoch().count());
 	shuffle(othersChromosomes.begin(), othersChromosomes.end(), default_random_engine(seed));
 
+	int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 	othersChromosomes.erase(
 		othersChromosomes.begin() + OTHERS_CHROMOSOMES_COUNT,
 		othersChromosomes.end()
@@ -1155,6 +1182,7 @@ void GeneticPopulation::makeChildren(Chromosomes& parents, Chromosomes& children
 	unsigned seed = static_cast<unsigned>(chrono::system_clock::now().time_since_epoch().count());
 	shuffle(parents.begin(), parents.end(), default_random_engine(seed));
 
+	int CHILDREN_COUNT = static_cast<int>(population.size() / 5);
 	int chosenParentsCount = 2 * CHILDREN_COUNT;
 	Chromosomes chosenParents(parents.begin(), parents.begin() + chosenParentsCount);
 
@@ -1192,7 +1220,18 @@ void GeneticPopulation::crossover(const Chromosome& parent0, const Chromosome& p
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+void GeneticPopulation::resetChildFlags() {
+	for (size_t chromeIdx = 0; chromeIdx < population.size(); ++chromeIdx) {
+		population[chromeIdx].setIsChild(false);
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void GeneticPopulation::makeNextGeneration() {
+	resetChildFlags();
+
 	Chromosomes parents;
 	chooseParents(parents);
 
@@ -1396,11 +1435,11 @@ void Game::turnBegin() {
 
 	int populationId = 0;
 	while (!answerFound) {
-		geneticPopulation.simulate(shuttle);
+		answerFound = geneticPopulation.simulate(shuttle);
 		geneticPopulation.sortChromosomes();
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
-		string populationIdSVGData = svgManager.constructGId(populationId);
+		string populationIdSVGData = svgManager.constructGId(populationId++);
 		svgManager.filePrintStr(populationIdSVGData);
 		svgManager.filePrintStr(DISPLAY_NONE);
 		svgManager.filePrintStr(ID_END);
@@ -1410,7 +1449,7 @@ void Game::turnBegin() {
 
 		geneticPopulation.makeNextGeneration();
 
-		if (1 == populationId++) {
+		if (populationId == MAX_POPULATION) {
 			break;
 		}
 	}
