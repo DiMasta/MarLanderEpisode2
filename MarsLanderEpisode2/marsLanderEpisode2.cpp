@@ -41,13 +41,13 @@ const int RIGHT_ANGLE = 90;
 const float PI = 3.14159265f;
 const float BEST_CHROMOSOMES_PERCENT = .3f;
 const float OTHERS_CHROMOSOMES_PERCENT = .2f;
+const float MARS_GRAVITY = 3.711f;
 
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const float MARS_GRAVITY = 3.711f;
-const int CHROMOSOME_SIZE = 50;
-const int POPULATION_SIZE = 10;
+const int CHROMOSOME_SIZE = 60;
+const int POPULATION_SIZE = 40;
 const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 const int CHILDREN_COUNT = POPULATION_SIZE / 5;
@@ -925,6 +925,7 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 		evaluation = other.evaluation;
 		chromosome = other.chromosome;
 		path = other.path;
+		isChild = other.isChild;
 	}
 	return *this;
 }
@@ -1091,12 +1092,12 @@ void GeneticPopulation::initRandomPopulation() {
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			int randAngle = rotateDistr(angleEng);
-			int randPower = powerDistr(powerEng);
+			//int randAngle = rotateDistr(angleEng);
+			//int randPower = powerDistr(powerEng);
 
 			// Hardcoded oldschool rand
-			//int randAngle = (rand() % 181) - 90;
-			//int randPower = (rand() % 5);
+			int randAngle = (rand() % 181) - 90;
+			int randPower = (rand() % 5);
 
 			Gene gene(randAngle, randPower);
 			population[chromIdx].addGene(gene);

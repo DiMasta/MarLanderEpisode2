@@ -20,6 +20,7 @@
 </svg>
 
 <button onclick="showNextTurnData()">Next Turn</button>
+<button onclick="showPreviousTurnData()">Previous Turn</button>
 <button onclick="Whole Game">Whole Game</button>
 
 <script>
@@ -36,6 +37,17 @@ function showNextTurnData() {
 	var currentTurnElementId = turnStr + turn;
 	document.getElementById(currentTurnElementId).style.display = "block";
 	++turn;
+}
+
+function showPreviousTurnData() {
+	--turn;
+	var currentTurnElementId = turnStr + turn;
+	document.getElementById(currentTurnElementId).style.display = "none";
+
+	if (turn > 0) {
+		var previousTurnElementId = turnStr + (turn - 1);
+		document.getElementById(previousTurnElementId).style.display = "block";
+	}
 }
 
 function clicked(evt){

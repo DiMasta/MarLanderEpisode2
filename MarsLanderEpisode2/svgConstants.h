@@ -22,13 +22,14 @@ static const std::string DISPLAY_NONE = "style=\"display:none\"";
 
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\
-<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"7000\" height = \"3000\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\">\n\
+<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"1750\" height = \"750\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\">\n\
 ";
 
 static const std::string FILE_END = "\
 </svg>\n\
 \n\
 <button onclick = \"showNextTurnData()\">Next Turn</button>\n\
+<button onclick = \"showPreviousTurnData()\">Previous Turn</button>\n\
 <button onclick = \"Whole Game\">Whole Game</button>\n\
 \n\
 <script>\n\
@@ -44,6 +45,17 @@ function showNextTurnData() {\n\
 	var currentTurnElementId = turnStr + turn;\n\
 	document.getElementById(currentTurnElementId).style.display = \"block\";\n\
 	++turn;\n\
+}\n\
+\n\
+function showPreviousTurnData() {\n\
+	--turn;\n\
+	var currentTurnElementId = turnStr + turn;\n\
+	document.getElementById(currentTurnElementId).style.display = \"none\";\n\
+\n\
+	if (turn > 0) {\n\
+		var previousTurnElementId = turnStr + (turn - 1);\n\
+		document.getElementById(previousTurnElementId).style.display = \"block\";\n\
+	}\n\
 }\n\
 \n\
 function clicked(evt) {\n\
