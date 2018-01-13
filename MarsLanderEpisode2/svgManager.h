@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #include "svgConstants.h"
 
@@ -19,6 +20,7 @@ public:
 	std::string constructStrokeForRGB(int r, int g, int b) const;
 	std::string constructStrokeWidth(int width) const;
 	std::string constructGId(int id) const;
+	std::string constructMultiLineTitle(const std::vector<std::string>& titleLines) const;
 
 private:
 	std::ofstream svgHtmlFileStream;

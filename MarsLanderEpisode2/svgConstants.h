@@ -3,6 +3,7 @@
 
 #include <string>
 
+static const std::string NEW_LINE = "\n";
 static const std::string SVG_HTML_FILE_NAME = "visualDebugTool.html";
 static const std::string POLYLINE_BEGIN = "	<polyline points = \"";
 static const std::string POLYLINE_END = " />\n";
@@ -17,8 +18,13 @@ static const std::string ONCLICK_DISPLAY_DATA = "onclick=\"displayData(event)\""
 static const std::string DATA_EVALUATION = "data-evaluation=\"";
 static const std::string ID_BEGIN = "<g id=\"turn";
 static const std::string ID_END = ">\n";
-static const std::string GROUP_END = "</g>\n\n";
 static const std::string DISPLAY_NONE = "style=\"display:none\"";
+static const std::string GROUP_BEGIN = "<g>";
+static const std::string GROUP_END = "</g>";
+static const std::string TSPAN_BEGIN = "<tspan>";
+static const std::string TSPAN_END = "</tspan>";
+static const std::string TITLE_BEGIN = "<title>";
+static const std::string TITLE_END = "</title>";
 
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\

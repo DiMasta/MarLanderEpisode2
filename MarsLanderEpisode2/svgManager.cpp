@@ -78,3 +78,19 @@ std::string SVGManager::constructGId(int id) const {
 	res.append("\" ");
 	return res;
 }
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+string SVGManager::constructMultiLineTitle(const vector<string>& titleLines) const {
+	string res = TITLE_BEGIN;
+	for (size_t lineIdx = 0; lineIdx < titleLines.size(); ++lineIdx) {
+		res.append(TSPAN_BEGIN);
+		res.append(titleLines[lineIdx]);
+		res.append(TSPAN_END);
+		res.append("\n");
+	}
+	res.append(TITLE_END);
+
+	return res;
+}

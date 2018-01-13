@@ -50,7 +50,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;
 const int POPULATION_SIZE = 40;
-const int MAX_POPULATION = 200;
+const int MAX_POPULATION = 10;
 //const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 //const int CHILDREN_COUNT = POPULATION_SIZE / 5;
@@ -642,6 +642,7 @@ public:
 	void simulate(int rotateAngle, int thrustPower);
 	void print() const;
 	bool goodForLanding(const Line& landingZone) const;
+	void getTitleLines(vector<string>& titleLines) const;
 
 private:
 	Coords position;
@@ -822,6 +823,36 @@ bool Shuttle::goodForLanding(const Line& landingZone) const {
 	return res;
 }
 
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Shuttle::getTitleLines(vector<string>& titleLines) const {
+	titleLines.clear();
+
+	string positionLine = "Shuttle position: (";
+	positionLine.append(to_string(static_cast<int>(position.getXCoord())));
+	positionLine.append(", ");
+	positionLine.append(to_string(static_cast<int>(position.getYCoord())));
+	positionLine.append(")");
+	titleLines.push_back(positionLine);
+
+	string rotationLine = "Rotation: ";
+	rotationLine.append(to_string(rotate));
+	titleLines.push_back(rotationLine);
+
+	string powerLine = "Power: ";
+	powerLine.append(to_string(power));
+	titleLines.push_back(powerLine);
+
+	string hSpeedLine = "HSpeed: ";
+	hSpeedLine.append(to_string(static_cast<int>(hSpeed)));
+	titleLines.push_back(hSpeedLine);
+
+	string vSpeedLine = "VSpeed: ";
+	vSpeedLine.append(to_string(static_cast<int>(vSpeed)));
+	titleLines.push_back(vSpeedLine);
+}
+
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
@@ -981,6 +1012,19 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = "";
 
+	svgStr.append(GROUP_BEGIN);
+	svgStr.append(NEW_LINE);
+
+	vector<string> titleLines;
+	shuttle.getTitleLines(titleLines);
+	string evaluationLine = "Evaluation: ";
+	evaluationLine.append(to_string(evaluation));
+	titleLines.push_back(evaluationLine);
+	string title = svgManager.constructMultiLineTitle(titleLines);
+	svgStr.append(title);
+	svgStr.append(NEW_LINE);
+	svgStr.append(NEW_LINE);
+
 	svgStr.append(POLYLINE_BEGIN);
 
 	for (size_t positionIdx = 0; positionIdx < path.size() - 1; ++positionIdx) {
@@ -1003,10 +1047,6 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	}
 	svgStr.append("\" ");
 
-	svgStr.append(DATA_EVALUATION);
-	svgStr.append(to_string(evaluation));
-	svgStr.append(ATTRIBUTE_END);
-
 	svgStr.append(STYLE_BEGIN);
 	svgStr.append(FILL_NONE);
 
@@ -1024,6 +1064,9 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append(ONCLICK_DISPLAY_DATA);
 
 	svgStr.append(POLYLINE_END);
+	svgStr.append(GROUP_END);
+	svgStr.append(NEW_LINE);
+	svgStr.append(NEW_LINE);
 
 	return svgStr;
 }
@@ -1507,6 +1550,8 @@ void Game::turnBegin() {
 		svgManager.filePrintStr(ID_END);
 		svgManager.filePrintStr(populationSVGData);
 		svgManager.filePrintStr(GROUP_END);
+		svgManager.filePrintStr(NEW_LINE);
+		svgManager.filePrintStr(NEW_LINE);
 #endif // SVG
 
 		geneticPopulation.makeNextGeneration();
