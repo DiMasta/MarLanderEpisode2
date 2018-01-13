@@ -27,7 +27,7 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
-const bool USE_OLDSCHOOL_RAND = 0;
+const bool USE_OLDSCHOOL_RAND = 1;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
@@ -43,6 +43,7 @@ const float PI = 3.14159265f;
 const float BEST_CHROMOSOMES_PERCENT = .3f;
 const float OTHERS_CHROMOSOMES_PERCENT = .2f;
 const float MARS_GRAVITY = 3.711f;
+const float SAVE_DISTANCE_TO_LANDING_ZONE = 50.f;
 
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
@@ -54,6 +55,8 @@ const int MAX_POPULATION = 200;
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 //const int CHILDREN_COUNT = POPULATION_SIZE / 5;
 const int CROSSOVER_POINT = CHROMOSOME_SIZE / 2;
+const int COMPONENT_EVAL_FACTOR = 10;
+
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
 const int MIN_ROTATION_ANGLE = -90;
@@ -64,6 +67,8 @@ const int MIN_POWER = 0;
 const int MAX_POWER = 4;
 const int MIN_POWER_STEP = -1;
 const int MAX_POWER_STEP = 1;
+const int MAX_V_SPEED_FOR_LANDING = 40;
+const int MAX_H_SPEED_FOR_LANDING = 20;
 
 enum ComponentType {
 	CT_INVALID = -1,
@@ -377,6 +382,17 @@ public:
 	Surface();
 	~Surface();
 
+	Lines getLines() const {
+		return lines;
+	}
+
+	Line getLandingZone() const {
+		return landingZone;
+	}
+
+	void setLines(const Lines& lines) { this->lines = lines; }
+	void setLandingZone(const Line& landingZone) { this->landingZone = landingZone; }
+
 	int getLinesCount() const;
 	Line getLine(int lineIdx) const;
 	bool collisionWithSurface(const Coords& landerPoint);
@@ -623,10 +639,9 @@ public:
 
 	int clampRotateAngle(int newRotateAngle) const;
 	int clampPower(int newPower) const;
-
 	void simulate(int rotateAngle, int thrustPower);
-
 	void print() const;
+	bool goodForLanding(const Line& landingZone) const;
 
 private:
 	Coords position;
@@ -780,6 +795,33 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 void Shuttle::print() const {
 }
 
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Shuttle::goodForLanding(const Line& landingZone) const {
+	bool res = false;
+
+	Coord shuttleX = position.getXCoord();
+	Coord shuttleY = position.getYCoord();
+
+	Coord landingZoneX0 = landingZone.getPoint0().getXCoord();
+	Coord landingZoneX1 = landingZone.getPoint1().getXCoord();
+	Coord landingZoneY = landingZone.getPoint0().getYCoord();
+
+	if (shuttleX > landingZoneX0 && shuttleX < landingZoneX1) {
+		Coord distToLandingZone = shuttleY - landingZoneY;
+		if (distToLandingZone < SAVE_DISTANCE_TO_LANDING_ZONE) {
+			if (rotate >= MIN_ROTATION_ANGLE_STEP && rotate <= MAX_ROTATION_ANGLE_STEP) {
+				if (hSpeed <= MAX_H_SPEED_FOR_LANDING && vSpeed <= MAX_V_SPEED_FOR_LANDING) {
+					res = true;
+				}
+			}
+		}
+	}
+
+	return res;
+}
+
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
@@ -873,8 +915,9 @@ public:
 	void evaluate(Surface* surface);
 	void addGene(const Gene& gene);
 	Gene getGene(int geneIdx) const;
-	void simulate(Surface* surface);
+	void simulate(Surface* surface, bool& goodForLanding);
 	void mutate();
+	bool isValid();
 
 	string constructSVGData(const SVGManager& svgManager) const;
 
@@ -990,6 +1033,9 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 
 void Chromosome::evaluate(Surface* surface) {
 	evaluation = surface->findDistanceToLandingZone(shuttle.getPosition());
+	evaluation += static_cast<float>(shuttle.getRotate() * COMPONENT_EVAL_FACTOR);
+	evaluation += static_cast<float>(shuttle.getHSpeed() * COMPONENT_EVAL_FACTOR);
+	evaluation += static_cast<float>(shuttle.getVSpeed() * COMPONENT_EVAL_FACTOR);
 }
 
 //*************************************************************************************************************
@@ -1009,13 +1055,20 @@ Gene Chromosome::getGene(int geneIdx) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::simulate(Surface* surface) {
+void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	path.clear();
 
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
 		path.push_back(shuttle.getPosition());
+
+		if (shuttle.goodForLanding(surface->getLandingZone())) {
+			chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
+			chromosome.push_back(Gene(0, 0));
+			goodForLanding = true;
+			break;
+		}
 
 		if (surface->collisionWithSurface(shuttle.getPosition())) {
 			break;
@@ -1030,6 +1083,13 @@ void Chromosome::mutate() {
 	int randGeneIdx = rand() % chromosome.size();
 	chromosome[randGeneIdx].rotate = (rand() % (MAX_ROTATION_ANGLE * 2)) - MAX_ROTATION_ANGLE;
 	chromosome[randGeneIdx].power = (rand() % (MAX_POWER * 2)) - MAX_POWER;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Chromosome::isValid() {
+	return chromosome.size() > 0;
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1051,7 +1111,7 @@ public:
 	void setSurface(const Surface& surface) { this->surface = surface; }
 
 	void initRandomPopulation();
-	bool simulate(Shuttle* shuttle);
+	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
 	void sortChromosomes();
 	void chooseParents(Chromosomes& parents);
 	void makeChildren(Chromosomes& parents, Chromosomes& children);
@@ -1121,7 +1181,7 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool GeneticPopulation::simulate(Shuttle* shuttle) {
+bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosome) {
 	bool foundResChromosome = false;
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
@@ -1133,14 +1193,14 @@ bool GeneticPopulation::simulate(Shuttle* shuttle) {
 		}
 
 		chromosome->setShuttle(*shuttle);
-		chromosome->simulate(&surface);
-		chromosome->evaluate(&surface);
+		chromosome->simulate(&surface, foundResChromosome);
 
-		float evaluation = chromosome->getEvaluation();
-		if (evaluation < 50.f) {
-			foundResChromosome = true;
+		if (foundResChromosome) {
+			solutionChromosome = *chromosome;
 			break;
 		}
+
+		chromosome->evaluate(&surface);
 	}
 
 	return foundResChromosome;
@@ -1291,6 +1351,7 @@ private:
 	Surface* surface;
 
 	GeneticPopulation geneticPopulation;
+	Chromosome solutionChromosome;
 
 #ifdef SVG
 	SVGManager svgManager;
@@ -1305,7 +1366,8 @@ Game::Game() :
 	turnsCount(0),
 	shuttle(NULL),
 	surface(NULL),
-	geneticPopulation()
+	geneticPopulation(),
+	solutionChromosome()
 #ifdef SVG
 	,svgManager()
 #endif // SVG
@@ -1435,7 +1497,7 @@ void Game::turnBegin() {
 
 	int populationId = 0;
 	while (!answerFound) {
-		answerFound = geneticPopulation.simulate(shuttle);
+		answerFound = geneticPopulation.simulate(shuttle, solutionChromosome);
 		geneticPopulation.sortChromosomes();
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
@@ -1459,17 +1521,16 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn() {
-	//shuttle->simulate(-15, 1);
-
-	cout << "-15 1" << endl;
+	if (solutionChromosome.isValid()) {
+		Gene& turnGene = solutionChromosome.getGene(turnsCount);
+		cout << turnGene.rotate << " " << turnGene.power << endl;
+	}
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void Game::turnEnd() {
-	// render the turn debug data
-
 	++turnsCount;
 }
 
