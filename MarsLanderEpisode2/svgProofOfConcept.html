@@ -2,6 +2,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="700" height="300" viewBox="0 0 7000 3000" style="background-color:black" onclick="clicked(evt)">
 	<polyline points="0,2900 1000,2500 1500,1500 3000,2000 4000,2850 5500,2850 6999,2200"  style="fill:none;stroke:red;stroke-width:10"/>
 
+    <text id="populationText" x="20" y="180" style="font-family:sans-serif;font-size:200px;fill:red">Population Id</text>
+    
 	<g id="turn0" style="display:none">
 		<polyline points="200,400 4000,200" style="fill:none;stroke:blue;stroke-width:10"/>
 		<polyline points="300,550 4000,200" style="fill:none;stroke:yellow;stroke-width:10"/>
@@ -19,8 +21,8 @@
 
 </svg>
 
-<button onclick = "showNextTurnData()">Next Sim</button>
 <button onclick = "showPreviousTurnData()">Previous Sim</button>
+<button onclick = "showNextTurnData()">Next Sim</button>
 <button onclick = "wholeSimulation(0)">Whole Sim</button>
 
 <script>
@@ -36,17 +38,21 @@ function showNextTurnData() {
 
 	var currentTurnElementId = turnStr + turn;
 	document.getElementById(currentTurnElementId).style.display = "block";
+    changePopulationText(turn);
 	++turn;
 }
 
 function showPreviousTurnData() {
+    changePopulationText("Id");
+
 	--turn;
-	var currentTurnElementId = turnStr + turn;
+    var currentTurnElementId = turnStr + turn;
 	document.getElementById(currentTurnElementId).style.display = "none";
 
 	if (turn > 0) {
 		var previousTurnElementId = turnStr + (turn - 1);
 		document.getElementById(previousTurnElementId).style.display = "block";
+        changePopulationText(turn - 1);
 	}
 }
 
@@ -71,10 +77,16 @@ function wholeSimulation(groupIdx) {
 			var previousTurnElementId = turnStr + (groupIdx - 1);
 			document.getElementById(previousTurnElementId).style.display = "none";
 		}
-				
-		element.style.display = "block";	
+
+		element.style.display = "block";
+        changePopulationText(groupIdx);        
 
 		wholeSimulation(++groupIdx);		
 	}, 1000);
 }
+
+function changePopulationText(populationNumber) {
+    document.getElementById("populationText").textContent = "Population " + populationNumber;
+}
+
 </script>

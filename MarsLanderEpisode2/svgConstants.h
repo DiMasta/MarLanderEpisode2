@@ -23,13 +23,16 @@ static const std::string DISPLAY_NONE = "style=\"display:none\"";
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\
 <svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"1750\" height = \"750\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\">\n\
+\n\
+<text id=\"populationText\" x=\"20\" y=\"180\" style=\"font-family:sans-serif;font-size:200px;fill:red\">Population Id</text>\n\
+\n\
 ";
 
 static const std::string FILE_END = "\
 </svg>\n\
 \n\
-<button onclick = \"showNextSim()\">Next Sim</button>\n\
 <button onclick = \"showPreviousSim()\">Previous Sim</button>\n\
+<button onclick = \"showNextSim()\">Next Sim</button>\n\
 <button onclick = \"wholeSimulation(0)\">Whole Sim</button>\n\
 \n\
 <script>\n\
@@ -44,10 +47,13 @@ function showNextSim() {\n\
 \n\
 	var currentTurnElementId = turnStr + turn;\n\
 	document.getElementById(currentTurnElementId).style.display = \"block\";\n\
+	changePopulationText(turn);\n\
 	++turn;\n\
 }\n\
 \n\
 function showPreviousSim() {\n\
+	changePopulationText(\"Id\");\n\
+\n\
 	--turn;\n\
 	var currentTurnElementId = turnStr + turn;\n\
 	document.getElementById(currentTurnElementId).style.display = \"none\";\n\
@@ -55,6 +61,7 @@ function showPreviousSim() {\n\
 	if (turn > 0) {\n\
 		var previousTurnElementId = turnStr + (turn - 1);\n\
 		document.getElementById(previousTurnElementId).style.display = \"block\";\n\
+		changePopulationText(turn - 1);\n\
 	}\n\
 }\n\
 \n\
@@ -73,6 +80,7 @@ function wholeSimulation(groupIdx) {\n\
 		}\n\
 \n\
 		element.style.display =\"block\";\n\
+		changePopulationText(groupIdx);\n\
 \n\
 		wholeSimulation(++groupIdx);\n\
 	}, 500);\n\
@@ -90,6 +98,10 @@ function clicked(evt) {\n\
 function displayData(event) {\n\
 	var evaluation = event.target.getAttributeNS(null, \"data-evaluation\");\n\
 	alert(\"Evaluation: \" + evaluation);\n\
+}\n\
+\n\
+function changePopulationText(populationNumber) {\n\
+	document.getElementById(\"populationText\").textContent = \"Population \" + populationNumber;\n\
 }\n\
 \n\
 </script>\n\
