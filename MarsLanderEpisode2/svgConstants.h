@@ -26,9 +26,10 @@ static const std::string TSPAN_END = "</tspan>";
 static const std::string TITLE_BEGIN = "<title>";
 static const std::string TITLE_END = "</title>";
 
+// 1750 750
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\
-<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"1750\" height = \"750\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\">\n\
+<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"7000\" height = \"3000\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\">\n\
 \n\
 <text id=\"populationText\" x=\"20\" y=\"180\" style=\"font-family:sans-serif;font-size:200px;fill:red\">Population Id</text>\n\
 \n\
@@ -101,13 +102,22 @@ function clicked(evt) {\n\
 	alert(\"x: \" + x + \" y:\" + y);\n\
 }\n\
 \n\
-function displayData(event) {\n\
-	var evaluation = event.target.getAttributeNS(null, \"data-evaluation\");\n\
-	alert(\"Evaluation: \" + evaluation);\n\
-}\n\
-\n\
 function changePopulationText(populationNumber) {\n\
 	document.getElementById(\"populationText\").textContent = \"Population \" + populationNumber;\n\
+}\n\
+\n\
+window.onkeydown = function(e) {\n\
+	var key = e.keyCode ? e.keyCode : e.which;\n\
+	\n\
+	if (107 == key) {\n\
+		showNextSim();\n\
+	}\n\
+	else if (109 == key) {\n\
+		showPreviousSim(); \n\
+	}\n\
+	else if (106 == key) {\n\
+		wholeSimulation(turn);\n\
+	}\n\
 }\n\
 \n\
 </script>\n\

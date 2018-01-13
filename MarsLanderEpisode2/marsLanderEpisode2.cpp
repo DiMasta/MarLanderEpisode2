@@ -27,7 +27,7 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
-const bool USE_OLDSCHOOL_RAND = 1;
+const bool USE_OLDSCHOOL_RAND = 0;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;

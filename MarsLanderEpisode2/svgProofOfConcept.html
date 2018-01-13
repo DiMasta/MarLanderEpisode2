@@ -13,7 +13,7 @@
 	<g id="turn0" style="display:none">
         <g>
             <title><tspan>This is line 1</tspan>
-    <tspan>This is line 2</tspan>
+<tspan>This is line 2</tspan>
 <tspan>This is line 3</tspan>
 <tspan>This is line 4</tspan></title></title>
             <polyline points="200,400 4000,200" style="fill:none;stroke:blue;stroke-width:10"/>
@@ -99,6 +99,22 @@ function wholeSimulation(groupIdx) {
 
 function changePopulationText(populationNumber) {
     document.getElementById("populationText").textContent = "Population " + populationNumber;
+}
+
+window.onkeydown = function(e) {
+    var key = e.keyCode ? e.keyCode : e.which;
+
+    alert(key);
+    
+    if (107 == key) {
+        showNextTurnData()
+    }
+    else if(109 == key) {
+        showPreviousTurnData()
+    }
+    else if (96 == key) {
+        wholeSimulation(turn);
+    }
 }
 
 </script>
