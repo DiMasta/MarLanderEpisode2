@@ -50,7 +50,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;
 const int POPULATION_SIZE = 40;
-const int MAX_POPULATION = 10;
+const int MAX_POPULATION = 1;
 //const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 //const int CHILDREN_COUNT = POPULATION_SIZE / 5;
@@ -1190,22 +1190,49 @@ GeneticPopulation::~GeneticPopulation() {
 void GeneticPopulation::initRandomPopulation() {
 	random_device angleRd; // obtain a random number from hardware
 	mt19937 angleEng(angleRd()); // seed the generator
-	uniform_int_distribution<> rotateDistr(MIN_ROTATION_ANGLE, MAX_ROTATION_ANGLE); // define the range
+	//uniform_int_distribution<> rotateDistr(MIN_ROTATION_ANGLE, MAX_ROTATION_ANGLE); // define the range
+	int currentAngle = 0;
+	int currentPower = 0;
 
 	random_device powerRd;
 	mt19937 powerEng(powerRd());
-	uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
+	//uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+			int minAngle = currentAngle - MAX_ROTATION_ANGLE_STEP;
+			if (minAngle < MIN_ROTATION_ANGLE) {
+				minAngle = MIN_ROTATION_ANGLE;
+			}
+
+			int maxAngle = currentAngle + MAX_ROTATION_ANGLE_STEP;
+			if (maxAngle > MAX_ROTATION_ANGLE) {
+				maxAngle = MAX_ROTATION_ANGLE;
+			}
+
+			int minPower = currentPower - MAX_POWER_STEP;
+			if (minPower < MIN_POWER) {
+				minPower = MIN_POWER;
+			}
+
+			int maxPower = currentPower + MAX_POWER_STEP;
+			if (maxPower > MAX_POWER) {
+				maxPower = MAX_POWER;
+			}
+
 			int randAngle = 0;
 			int randPower = 0;
 
 			if (USE_OLDSCHOOL_RAND) {
-				randAngle = (rand() % 181) - 90;
-				randPower = (rand() % 5);
+				int modAngle = (maxAngle - minAngle) + 1;
+				int modPower = (maxPower - minPower) + 1;
+				randAngle = (rand() % modAngle) + minAngle;
+				randPower = (rand() % modPower) + minPower;
 			}
 			else {
+				uniform_int_distribution<> rotateDistr(minAngle, maxAngle);
+				uniform_int_distribution<> powerDistr(minPower, maxPower);
+
 				randAngle = rotateDistr(angleEng);
 				randPower = powerDistr(powerEng);
 			}
@@ -1217,6 +1244,8 @@ void GeneticPopulation::initRandomPopulation() {
 			cout << randAngle << ", " << randPower << ", " << endl;
 #endif // SIMULATION_OUTPUT
 
+			currentAngle = randAngle;
+			currentPower = randPower;
 		}
 	}
 }
