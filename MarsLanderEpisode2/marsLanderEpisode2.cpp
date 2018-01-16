@@ -27,7 +27,7 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
-const bool USE_OLDSCHOOL_RAND = 1;
+const bool USE_OLDSCHOOL_RAND = 0;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
@@ -48,9 +48,9 @@ const float SAVE_DISTANCE_TO_LANDING_ZONE = 50.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 60;
-const int POPULATION_SIZE = 20;
-const int MAX_POPULATION = 200;
+const int CHROMOSOME_SIZE = 60;//300
+const int POPULATION_SIZE = 200;
+const int MAX_POPULATION = 10;
 //const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 //const int CHILDREN_COUNT = POPULATION_SIZE / 5;
@@ -1188,64 +1188,45 @@ GeneticPopulation::~GeneticPopulation() {
 //*************************************************************************************************************
 
 void GeneticPopulation::initRandomPopulation() {
+	int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
+	//int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
+	int maxPowerRand = MAX_POWER + 1;
+
 	random_device angleRd; // obtain a random number from hardware
 	mt19937 angleEng(angleRd()); // seed the generator
-	//uniform_int_distribution<> rotateDistr(MIN_ROTATION_ANGLE, MAX_ROTATION_ANGLE); // define the range
-	int currentAngle = 0;
-	int currentPower = 0;
+	uniform_int_distribution<> rotateDistr(0, maxAngleRand - 1);
 
 	random_device powerRd;
 	mt19937 powerEng(powerRd());
-	//uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
+	uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
+
+	int currentAngle = 0;
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-			int minAngle = currentAngle - MAX_ROTATION_ANGLE_STEP;
-			if (minAngle < MIN_ROTATION_ANGLE) {
-				minAngle = MIN_ROTATION_ANGLE;
-			}
-
-			int maxAngle = currentAngle + MAX_ROTATION_ANGLE_STEP;
-			if (maxAngle > MAX_ROTATION_ANGLE) {
-				maxAngle = MAX_ROTATION_ANGLE;
-			}
-
-			int minPower = currentPower - MAX_POWER_STEP;
-			if (minPower < MIN_POWER) {
-				minPower = MIN_POWER;
-			}
-
-			int maxPower = currentPower + MAX_POWER_STEP;
-			if (maxPower > MAX_POWER) {
-				maxPower = MAX_POWER;
-			}
 
 			int randAngle = 0;
 			int randPower = 0;
 
 			if (USE_OLDSCHOOL_RAND) {
-				int modAngle = (maxAngle - minAngle) + 1;
-				int modPower = (maxPower - minPower) + 1;
-				randAngle = (rand() % modAngle) + minAngle;
-				randPower = (rand() % modPower) + minPower;
+				randAngle = rand() % maxAngleRand;
+				randPower = rand() % maxPowerRand;
 			}
 			else {
-				uniform_int_distribution<> rotateDistr(minAngle, maxAngle);
-				uniform_int_distribution<> powerDistr(minPower, maxPower);
-
 				randAngle = rotateDistr(angleEng);
 				randPower = powerDistr(powerEng);
 			}
 
-			Gene gene(randAngle, randPower);
+			randAngle += MIN_ROTATION_ANGLE_STEP;
+			currentAngle += randAngle;
+			currentAngle = max(MIN_ROTATION_ANGLE, min(currentAngle, MAX_ROTATION_ANGLE));
+
+			Gene gene(currentAngle, randPower);
 			population[chromIdx].addGene(gene);
 
 #ifdef SIMULATION_OUTPUT
-			cout << randAngle << ", " << randPower << ", " << endl;
+			cout << currentAngle << ", " << randPower << endl;
 #endif // SIMULATION_OUTPUT
-
-			currentAngle = randAngle;
-			currentPower = randPower;
 		}
 	}
 }
