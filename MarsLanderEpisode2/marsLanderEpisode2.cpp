@@ -27,7 +27,7 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
-const bool USE_OLDSCHOOL_RAND = 0;
+const bool USE_OLDSCHOOL_RAND = 1;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
@@ -49,8 +49,8 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;
-const int POPULATION_SIZE = 40;
-const int MAX_POPULATION = 1;
+const int POPULATION_SIZE = 20;
+const int MAX_POPULATION = 200;
 //const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 //const int CHILDREN_COUNT = POPULATION_SIZE / 5;
