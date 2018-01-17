@@ -395,7 +395,14 @@ public:
 
 	int getLinesCount() const;
 	Line getLine(int lineIdx) const;
-	bool collisionWithSurface(const Coords& landerPoint);
+
+	void collisionWithSurface(
+		const Coords& point0,
+		const Coords& point1,
+		Coords& collisionPoint,
+		bool& landingZoneCrash
+	);
+
 	void addLine(
 		const Coords& point0,
 		const Coords& point1,
@@ -446,16 +453,45 @@ Line Surface::getLine(int lineIdx) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool Surface::collisionWithSurface(const Coords& landerPoint) {
-	int linesBelowLander = 0;
-	
+void Surface::collisionWithSurface(
+	const Coords& point0,
+	const Coords& point1,
+	Coords& collisionPoint,
+	bool& landingZoneCrash
+) {
 	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
-		if (lines[lineIdx].pointBelow(landerPoint)) {
-			++linesBelowLander;
+		const Line& line = lines[lineIdx];
+
+		Coord p0x = point0.getXCoord();
+		Coord p0y = point0.getYCoord();
+		Coord p1x = point1.getXCoord();
+		Coord p1y = point1.getYCoord();
+
+		Coord p2x = line.getPoint0().getXCoord();
+		Coord p2y = line.getPoint0().getYCoord();
+		Coord p3x = line.getPoint1().getXCoord();
+		Coord p3y = line.getPoint1().getYCoord();
+
+		Coord s1x, s1y, s2x, s2y;
+		s1x = p1x - p0x;
+		s1y = p1y - p0y;
+
+		s2x = p3x - p2x;
+		s2y = p3y - p2y;
+
+		Coord s, t;
+		s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
+		t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
+
+		if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
+			collisionPoint.setXCoord(p0x + (t * s1x));
+			collisionPoint.setYCoord(p0y + (t * s1y));
+
+			if (LZD_HERE == line.getLandingZoneDirection()) {
+				landingZoneCrash = true;
+			}
 		}
 	}
-
-	return !(linesBelowLander % 2);
 }
 
 //*************************************************************************************************************
@@ -595,11 +631,6 @@ public:
 		return position;
 	}
 
-	Coords getPreviousPosition() const {
-		return previousPosition;
-	}
-
-
 	float getHSpeed() const {
 		return hSpeed;
 	}
@@ -621,7 +652,6 @@ public:
 	}
 
 	void setPosition(Coords position) { this->position = position; }
-	void setPreviousPosition(Coords previousPosition) { this->previousPosition = previousPosition; }
 	void setHSpeed(float hSpeed) { this->hSpeed = hSpeed; }
 	void setVSpeed(float vSpeed) { this->vSpeed = vSpeed; }
 	void setFuel(int fuel) { this->fuel = fuel; }
@@ -646,7 +676,6 @@ public:
 
 private:
 	Coords position;
-	Coords previousPosition;
 	float hSpeed; // the horizontal speed (in m/s), can be negative.
 	float vSpeed; // the vertical speed (in m/s), can be negative.
 	int fuel; // the quantity of remaining fuel in liters.
@@ -673,7 +702,6 @@ Shuttle::Shuttle() :
 
 Shuttle::Shuttle(const Shuttle& shuttle) {
 	position = shuttle.position;
-	previousPosition = shuttle.previousPosition;
 	hSpeed = shuttle.hSpeed;
 	vSpeed = shuttle.vSpeed;
 	fuel = shuttle.fuel;
@@ -934,11 +962,21 @@ public:
 		return isChild;
 	}
 
+	Coords getCollisionPoint() const {
+		return collisionPoint;
+	}
+
+	bool getLandingZoneCrash() const {
+		return landingZoneCrash;
+	}
+
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 	void setPath(const Path& path) { this->path = path; }
 	void setIsChild(bool isChild) { this->isChild = isChild; }
+	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
+	void setLandingZoneCrash(bool landingZoneCrash) { this->landingZoneCrash = landingZoneCrash; }
 
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
@@ -956,6 +994,8 @@ private:
 	Shuttle shuttle;
 	float evaluation;
 	bool isChild;
+	Coords collisionPoint;
+	bool landingZoneCrash;
 
 	Genes chromosome;
 	Path path;
@@ -969,7 +1009,9 @@ Chromosome::Chromosome() :
 	evaluation(0.f),
 	chromosome(),
 	path(),
-	isChild(false)
+	isChild(false),
+	collisionPoint(),
+	landingZoneCrash(true)
 {
 
 }
@@ -1113,8 +1155,13 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 			break;
 		}
 
-		if (surface->collisionWithSurface(shuttle.getPosition())) {
-			break;
+		if (0 < geneIdx) {
+			const Coords& lastPosition = path[geneIdx - 1];
+			surface->collisionWithSurface(lastPosition, shuttle.getPosition(), collisionPoint, landingZoneCrash);
+
+			if (collisionPoint.isValid()) {
+				break;
+			}
 		}
 	}
 }
