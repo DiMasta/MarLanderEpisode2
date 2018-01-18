@@ -466,33 +466,35 @@ void Surface::collisionWithSurface(
 	Coords& collisionPoint,
 	int& crashLineIdx
 ) {
-	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
-		const Line& line = lines[lineIdx];
+	if (point1.getXCoord() >= 0 && point1.getXCoord() <= MAP_WIDTH) {
+		for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
+			const Line& line = lines[lineIdx];
 
-		const Coord p0x = point0.getXCoord();
-		const Coord p0y = point0.getYCoord();
-		const Coord p1x = point1.getXCoord();
-		const Coord p1y = point1.getYCoord();
+			const Coord p0x = point0.getXCoord();
+			const Coord p0y = point0.getYCoord();
+			const Coord p1x = point1.getXCoord();
+			const Coord p1y = point1.getYCoord();
 
-		const Coord p2x = line.getPoint0().getXCoord();
-		const Coord p2y = line.getPoint0().getYCoord();
-		const Coord p3x = line.getPoint1().getXCoord();
-		const Coord p3y = line.getPoint1().getYCoord();
+			const Coord p2x = line.getPoint0().getXCoord();
+			const Coord p2y = line.getPoint0().getYCoord();
+			const Coord p3x = line.getPoint1().getXCoord();
+			const Coord p3y = line.getPoint1().getYCoord();
 
-		const Coord s1x = p1x - p0x;
-		const Coord s1y = p1y - p0y;
+			const Coord s1x = p1x - p0x;
+			const Coord s1y = p1y - p0y;
 
-		const Coord s2x = p3x - p2x;
-		const Coord s2y = p3y - p2y;
+			const Coord s2x = p3x - p2x;
+			const Coord s2y = p3y - p2y;
 
-		const Coord s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
-		const Coord t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
+			const Coord s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
+			const Coord t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
 
-		if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
-			collisionPoint.setXCoord(p0x + (t * s1x));
-			collisionPoint.setYCoord(p0y + (t * s1y));
+			if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
+				collisionPoint.setXCoord(p0x + (t * s1x));
+				collisionPoint.setYCoord(p0y + (t * s1y));
 
-			crashLineIdx = lineIdx;
+				crashLineIdx = lineIdx;
+			}
 		}
 	}
 }
@@ -564,31 +566,40 @@ string Surface::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 
 float Surface::findDistanceToLandingZone(const Coords& from, int crashLineIdx) const {
-	const Line& crashedLine = lines[crashLineIdx];
-	Coords pointToLandingZone = crashedLine.getPoint0();
-	if (LZD_RIGHT == crashedLine.getLandingZoneDirection()) {
-		pointToLandingZone = crashedLine.getPoint1();
-	}
+	float distTolandingZone = MAP_WIDTH * MAP_WIDTH;
 
-	float distTolandingZone = distance(from, pointToLandingZone);
-	const Line* line = &crashedLine;
-
-	int lineIdx = crashLineIdx;
-	while (true) {
-		const int lzd = line->getLandingZoneDirection();
-
-		if (LZD_RIGHT == lzd) {
-			++lineIdx;
+	if (INVALID_ID != crashLineIdx) {
+		const Line& crashedLine = lines[crashLineIdx];
+		Coords pointToLandingZone = crashedLine.getPoint0();
+		if (LZD_RIGHT == crashedLine.getLandingZoneDirection()) {
+			pointToLandingZone = crashedLine.getPoint1();
 		}
-		else if (LZD_LEFT == lzd) {
-			--lineIdx;
-		}
-		else {
-			break;
+		else if (LZD_HERE == crashedLine.getLandingZoneDirection()) {
+			pointToLandingZone = from;
 		}
 
-		line = &lines[lineIdx];
-		distTolandingZone += line->getLenght();
+		distTolandingZone = distance(from, pointToLandingZone);
+		const Line* line = &crashedLine;
+
+		int lineIdx = crashLineIdx;
+		while (true) {
+			const int lzd = line->getLandingZoneDirection();
+
+			if (LZD_RIGHT == lzd) {
+				++lineIdx;
+			}
+			else if (LZD_LEFT == lzd) {
+				--lineIdx;
+			}
+
+			line = &lines[lineIdx];
+
+			if (LZD_HERE == line->getLandingZoneDirection()) {
+				break;
+			}
+
+			distTolandingZone += line->getLenght();
+		}
 	}
 
 	return distTolandingZone;

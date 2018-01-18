@@ -29,7 +29,7 @@ static const std::string TITLE_END = "</title>";
 // 1750 750
 static const std::string FILE_START = "\
 <? xml version = \"1.0\" encoding = \"UTF-8\"?>\n\
-<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"7000\" height = \"3000\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\">\n\
+<svg xmlns = \"http://www.w3.org/2000/svg\" version = \"1.1\" width = \"7000\" height = \"3000\" viewBox = \"0 0 7000 3000\" style = \"background-color:black\" onclick=\"clicked(evt)\">\n\
 \n\
 <text id=\"populationText\" x=\"20\" y=\"180\" style=\"font-family:sans-serif;font-size:200px;fill:red\">Population Id</text>\n\
 \n\
