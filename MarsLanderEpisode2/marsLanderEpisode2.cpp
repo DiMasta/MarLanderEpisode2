@@ -31,6 +31,7 @@ const bool USE_OLDSCHOOL_RAND = 1;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
+const int MAX_DISTANCE = MAP_WIDTH * MAP_WIDTH;
 const int ASPECT = 10;
 const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
@@ -44,12 +45,14 @@ const float BEST_CHROMOSOMES_PERCENT = .3f;
 const float OTHERS_CHROMOSOMES_PERCENT = .2f;
 const float MARS_GRAVITY = 3.711f;
 const float SAVE_DISTANCE_TO_LANDING_ZONE = 50.f;
+const float MAX_V_ABS_SPEED = 40.f;
+const float MAX_H_ABS_SPEED = 20.f;
 
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;//300
-const int POPULATION_SIZE = 200;
+const int POPULATION_SIZE = 400;
 const int MAX_POPULATION = 1;
 //const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
@@ -566,40 +569,46 @@ string Surface::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 
 float Surface::findDistanceToLandingZone(const Coords& from, int crashLineIdx) const {
-	float distTolandingZone = MAP_WIDTH * MAP_WIDTH;
+	float distTolandingZone = 0.f;
 
 	if (INVALID_ID != crashLineIdx) {
 		const Line& crashedLine = lines[crashLineIdx];
-		Coords pointToLandingZone = crashedLine.getPoint0();
-		if (LZD_RIGHT == crashedLine.getLandingZoneDirection()) {
-			pointToLandingZone = crashedLine.getPoint1();
-		}
-		else if (LZD_HERE == crashedLine.getLandingZoneDirection()) {
-			pointToLandingZone = from;
-		}
 
-		distTolandingZone = distance(from, pointToLandingZone);
-		const Line* line = &crashedLine;
-
-		int lineIdx = crashLineIdx;
-		while (true) {
-			const int lzd = line->getLandingZoneDirection();
-
-			if (LZD_RIGHT == lzd) {
-				++lineIdx;
+		if (crashedLine.getLandingZoneDirection() != LZD_HERE) {
+			Coords pointToLandingZone = crashedLine.getPoint0();
+			if (LZD_RIGHT == crashedLine.getLandingZoneDirection()) {
+				pointToLandingZone = crashedLine.getPoint1();
 			}
-			else if (LZD_LEFT == lzd) {
-				--lineIdx;
+			else if (LZD_HERE == crashedLine.getLandingZoneDirection()) {
+				pointToLandingZone = from;
 			}
 
-			line = &lines[lineIdx];
+			distTolandingZone = distance(from, pointToLandingZone);
+			const Line* line = &crashedLine;
 
-			if (LZD_HERE == line->getLandingZoneDirection()) {
-				break;
+			int lineIdx = crashLineIdx;
+			while (true) {
+				const int lzd = line->getLandingZoneDirection();
+
+				if (LZD_RIGHT == lzd) {
+					++lineIdx;
+				}
+				else if (LZD_LEFT == lzd) {
+					--lineIdx;
+				}
+
+				line = &lines[lineIdx];
+
+				if (LZD_HERE == line->getLandingZoneDirection()) {
+					break;
+				}
+
+				distTolandingZone += line->getLenght();
 			}
-
-			distTolandingZone += line->getLenght();
 		}
+	}
+	else {
+		distTolandingZone = MAX_DISTANCE;
 	}
 
 	return distTolandingZone;
@@ -639,12 +648,17 @@ public:
 		return power;
 	}
 
+	int getInitialFuel() const {
+		return initialFuel;
+	}
+
 	void setPosition(Coords position) { this->position = position; }
 	void setHSpeed(float hSpeed) { this->hSpeed = hSpeed; }
 	void setVSpeed(float vSpeed) { this->vSpeed = vSpeed; }
 	void setFuel(int fuel) { this->fuel = fuel; }
 	void setRotate(int rotate) { this->rotate = rotate; }
 	void setPower(int power) { this->power = power; }
+	void setInitialFuel(int initialFuel) { this->initialFuel = initialFuel; }
 
 	void calculateComponents(
 		int newAngle,
@@ -669,6 +683,7 @@ private:
 	int fuel; // the quantity of remaining fuel in liters.
 	int rotate; // the rotation angle in degrees (-90 to 90).
 	int power; // the thrust power (0 to 4).
+	int initialFuel;
 };
 
 //*************************************************************************************************************
@@ -680,7 +695,8 @@ Shuttle::Shuttle() :
 	vSpeed(0),
 	fuel(0),
 	rotate(0),
-	power(0)
+	power(0),
+	initialFuel(0)
 {
 
 }
@@ -1104,12 +1120,75 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::evaluate(Surface* surface) {
-	evaluation = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
+/*
+var currentSpeed = Math.sqrt(Math.pow(this.xspeed, 2) + Math.pow(this.yspeed, 2));
 
-	//evaluation += static_cast<float>(shuttle.getRotate() * COMPONENT_EVAL_FACTOR);
-	//evaluation += static_cast<float>(shuttle.getHSpeed() * COMPONENT_EVAL_FACTOR);
-	//evaluation += static_cast<float>(shuttle.getVSpeed() * COMPONENT_EVAL_FACTOR);
+// 0-100: crashed somewhere, calculate score by distance to landing area
+if (!hitLandingArea) {
+
+	var lastX = this.points[this.points.length-2][0];
+	var lastY = this.points[this.points.length-2][1];
+	var distance = level.getDistanceToLandingArea(lastX, lastY);
+
+	// Calculate score from distance
+	this.score = 100 - (100 * distance / level.max_dist);
+
+	// High speeds are bad, they decrease maneuvrability
+	var speedPen = 0.1 * Math.max(currentSpeed - 100, 0);
+	this.score -= speedPen;
+}
+
+// 100-200: crashed into landing area, calculate score by speed above safety
+else if (this.yspeed < -40 || 20 < Math.abs(this.xspeed)) {
+	var xPen = 0;
+	if (20 < Math.abs(this.xspeed)) {
+		xPen = (Math.abs(this.xspeed) - 20) / 2
+	}
+
+	var yPen = 0
+	if (this.yspeed < -40) {
+		yPen = (-40 - this.yspeed) / 2
+	}
+	this.score = 200 - xPen - yPen
+	return;
+}
+
+// 200-300: landed safely, calculate score by fuel remaining
+else {
+	this.score = 200 + (100 * this.fuel / this.initFuel)
+}
+*/
+
+void Chromosome::evaluate(Surface* surface) {
+	float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
+	float hSpeed = abs(shuttle.getHSpeed());
+	float vSpeed = abs(shuttle.getVSpeed());
+	float currentSpeed = sqrt((hSpeed * hSpeed) + (vSpeed * vSpeed));
+	
+	if (dist > 0.f) {
+		evaluation = 100.f - (100.f * (dist / surface->getMaxDistance()));
+
+		float speedPen = .1f * max(currentSpeed - 100.f, 0.f);
+		evaluation -= speedPen;
+	}
+	else if (hSpeed > MAX_H_ABS_SPEED || vSpeed > MAX_V_ABS_SPEED) {
+		float hPen = 0.f;
+		if (MAX_H_ABS_SPEED < hSpeed) {
+			hPen = (hSpeed - MAX_H_ABS_SPEED) / 2;
+		}
+
+		float vPen = 0.f;
+		if (MAX_V_ABS_SPEED < vSpeed) {
+			vPen = (vSpeed - MAX_V_ABS_SPEED) / 2;
+		}
+
+		evaluation = 200.f - hPen - vPen;
+	}
+	else {
+		evaluation = 200.f + (100.f * (shuttle.getFuel() / shuttle.getInitialFuel()));
+	}
+
+	//evaluation = dist;	
 }
 
 //*************************************************************************************************************
@@ -1132,6 +1211,7 @@ Gene Chromosome::getGene(int geneIdx) const {
 void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	path.clear();
 
+	shuttle.setInitialFuel(shuttle.getInitialFuel());
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
