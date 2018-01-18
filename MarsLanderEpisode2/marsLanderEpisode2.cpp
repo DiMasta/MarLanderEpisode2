@@ -390,8 +390,13 @@ public:
 		return landingZone;
 	}
 
+	float getMaxDistance() const {
+		return maxDistance;
+	}
+
 	void setLines(const Lines& lines) { this->lines = lines; }
 	void setLandingZone(const Line& landingZone) { this->landingZone = landingZone; }
+	void setMaxDistance(float maxDistance) { this->maxDistance = maxDistance; }
 
 	int getLinesCount() const;
 	Line getLine(int lineIdx) const;
@@ -400,7 +405,7 @@ public:
 		const Coords& point0,
 		const Coords& point1,
 		Coords& collisionPoint,
-		bool& landingZoneCrash
+		int& crashLineIdx
 	);
 
 	void addLine(
@@ -410,13 +415,14 @@ public:
 		bool& landingZoneFound
 	);
 
-	float findDistanceToLandingZone(const Coords& from) const;
+	float findDistanceToLandingZone(const Coords& from, int crashLineIdx) const;
 
 	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
 	Lines lines;
 	Line landingZone;
+	float maxDistance;
 };
 
 //*************************************************************************************************************
@@ -424,7 +430,8 @@ private:
 
 Surface::Surface() :
 	lines(),
-	landingZone()
+	landingZone(),
+	maxDistance(0.f)
 {
 
 }
@@ -457,7 +464,7 @@ void Surface::collisionWithSurface(
 	const Coords& point0,
 	const Coords& point1,
 	Coords& collisionPoint,
-	bool& landingZoneCrash
+	int& crashLineIdx
 ) {
 	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
 		const Line& line = lines[lineIdx];
@@ -485,9 +492,7 @@ void Surface::collisionWithSurface(
 			collisionPoint.setXCoord(p0x + (t * s1x));
 			collisionPoint.setYCoord(p0y + (t * s1y));
 
-			if (LZD_HERE == line.getLandingZoneDirection()) {
-				landingZoneCrash = true;
-			}
+			crashLineIdx = lineIdx;
 		}
 	}
 }
@@ -558,58 +563,32 @@ string Surface::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-float Surface::findDistanceToLandingZone(const Coords& from) const {
-	size_t nearestLineIdx = 0;
-	int nearestLineDirToLandingZone = LZD_INVALID;
-
-	Coord minDistToLine = FLT_MAX;
-	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
-		const Line* line = &lines[lineIdx];
-
-		Coord linePointDistance = line->distanceToPoint(from);
-
-		if (linePointDistance < minDistToLine) {
-			minDistToLine = linePointDistance;
-			nearestLineIdx = lineIdx;
-			nearestLineDirToLandingZone = line->getLandingZoneDirection();
-		}
-	}
-
-	const Line* nearestLine = &lines[nearestLineIdx];
-	Coords pointToLandingZone = nearestLine->getPoint0();
-	if (LZD_RIGHT == nearestLineDirToLandingZone) {
-		pointToLandingZone = nearestLine->getPoint1();
-	}
-	else if (LZD_HERE == nearestLineDirToLandingZone) {
-		Coord x0 = nearestLine->getPoint0().getXCoord();
-		Coord y0 = nearestLine->getPoint0().getYCoord();
-		Coord x1 = nearestLine->getPoint1().getXCoord();
-
-		pointToLandingZone.setXCoord(x0 + ((x1 - x0) / 2));
-		pointToLandingZone.setYCoord(y0);
+float Surface::findDistanceToLandingZone(const Coords& from, int crashLineIdx) const {
+	const Line& crashedLine = lines[crashLineIdx];
+	Coords pointToLandingZone = crashedLine.getPoint0();
+	if (LZD_RIGHT == crashedLine.getLandingZoneDirection()) {
+		pointToLandingZone = crashedLine.getPoint1();
 	}
 
 	float distTolandingZone = distance(from, pointToLandingZone);
-	const Line* line = nearestLine;
+	const Line* line = &crashedLine;
 
-	int lineIdx = nearestLineIdx;
+	int lineIdx = crashLineIdx;
 	while (true) {
-		if (LZD_RIGHT == line->getLandingZoneDirection()) {
+		const int lzd = line->getLandingZoneDirection();
+
+		if (LZD_RIGHT == lzd) {
 			++lineIdx;
 		}
-		else if (LZD_LEFT) {
+		else if (LZD_LEFT == lzd) {
 			--lineIdx;
 		}
-
-		line = &lines[lineIdx];
-		int lineLenght = line->getLenght();
-		
-		if (LZD_HERE == line->getLandingZoneDirection()) {
-			distTolandingZone += lineLenght / 2;
+		else {
 			break;
 		}
 
-		distTolandingZone += lineLenght;
+		line = &lines[lineIdx];
+		distTolandingZone += line->getLenght();
 	}
 
 	return distTolandingZone;
@@ -964,8 +943,8 @@ public:
 		return collisionPoint;
 	}
 
-	bool getLandingZoneCrash() const {
-		return landingZoneCrash;
+	int getCrashLineIdx() const {
+		return crashLineIdx;
 	}
 
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
@@ -974,7 +953,7 @@ public:
 	void setPath(const Path& path) { this->path = path; }
 	void setIsChild(bool isChild) { this->isChild = isChild; }
 	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
-	void setLandingZoneCrash(bool landingZoneCrash) { this->landingZoneCrash = landingZoneCrash; }
+	void setCrashLineIdx(bool crashLineIdx) { this->crashLineIdx = crashLineIdx; }
 
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
@@ -993,7 +972,7 @@ private:
 	float evaluation;
 	bool isChild;
 	Coords collisionPoint;
-	bool landingZoneCrash;
+	int crashLineIdx;
 
 	Genes chromosome;
 	Path path;
@@ -1009,7 +988,7 @@ Chromosome::Chromosome() :
 	path(),
 	isChild(false),
 	collisionPoint(),
-	landingZoneCrash(true)
+	crashLineIdx(INVALID_ID)
 {
 
 }
@@ -1115,10 +1094,11 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 
 void Chromosome::evaluate(Surface* surface) {
-	evaluation = surface->findDistanceToLandingZone(shuttle.getPosition());
-	evaluation += static_cast<float>(shuttle.getRotate() * COMPONENT_EVAL_FACTOR);
-	evaluation += static_cast<float>(shuttle.getHSpeed() * COMPONENT_EVAL_FACTOR);
-	evaluation += static_cast<float>(shuttle.getVSpeed() * COMPONENT_EVAL_FACTOR);
+	evaluation = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
+
+	//evaluation += static_cast<float>(shuttle.getRotate() * COMPONENT_EVAL_FACTOR);
+	//evaluation += static_cast<float>(shuttle.getHSpeed() * COMPONENT_EVAL_FACTOR);
+	//evaluation += static_cast<float>(shuttle.getVSpeed() * COMPONENT_EVAL_FACTOR);
 }
 
 //*************************************************************************************************************
@@ -1144,7 +1124,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
-		path.push_back(shuttle.getPosition()) ;
+		path.push_back(shuttle.getPosition());
 
 		if (shuttle.goodForLanding(surface->getLandingZone())) {
 			chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
@@ -1155,7 +1135,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 
 		if (0 < geneIdx) {
 			const Coords& lastPosition = path[geneIdx - 1];
-			surface->collisionWithSurface(lastPosition, shuttle.getPosition(), collisionPoint, landingZoneCrash);
+			surface->collisionWithSurface(lastPosition, shuttle.getPosition(), collisionPoint, crashLineIdx);
 
 			if (collisionPoint.isValid()) {
 				path[path.size() - 1] = collisionPoint;
@@ -1536,7 +1516,14 @@ void Game::getGameInput() {
 
 	Coords point0;
 
+	float leftDistToLandingZone = 0.f;
+	float rightDistToLandingZone = 0.f;
+
+	float* distToLandingZone = &leftDistToLandingZone;
+
 	bool landingZoneFound = false;
+	int landingZoneDirection = LZD_RIGHT;
+
 	for (int i = 0; i < surfaceN; i++) {
 		int landX; // X coordinate of a surface point. (0 to 6999)
 		int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
@@ -1546,18 +1533,29 @@ void Game::getGameInput() {
 			cerr << landX << " " << landY << endl;
 		}
 
-		int landingZoneDirection = LZD_RIGHT;
-		if (landingZoneFound) {
+		if (landingZoneFound && 0.f == rightDistToLandingZone) {
 			landingZoneDirection = LZD_LEFT;
+			distToLandingZone = &rightDistToLandingZone;
 		}
 
 		Coords point1((float)landX, (float)landY);
 
 		if (0 != i) {
+			if (point0.getYCoord() != point1.getYCoord()) {
+				*distToLandingZone += distance(point0, point1);
+			}
+
 			surface->addLine(point0, point1, landingZoneDirection, landingZoneFound);
 		}
 
 		point0 = point1;
+	}
+
+	if (leftDistToLandingZone > rightDistToLandingZone) {
+		surface->setMaxDistance(leftDistToLandingZone);
+	}
+	else {
+		surface->setMaxDistance(rightDistToLandingZone);
 	}
 }
 
