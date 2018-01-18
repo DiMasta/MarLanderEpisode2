@@ -27,7 +27,7 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
-const bool USE_OLDSCHOOL_RAND = 0;
+const bool USE_OLDSCHOOL_RAND = 1;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
@@ -50,7 +50,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;//300
 const int POPULATION_SIZE = 200;
-const int MAX_POPULATION = 10;
+const int MAX_POPULATION = 1;
 //const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
 //const int CHILDREN_COUNT = POPULATION_SIZE / 5;
@@ -462,26 +462,24 @@ void Surface::collisionWithSurface(
 	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
 		const Line& line = lines[lineIdx];
 
-		Coord p0x = point0.getXCoord();
-		Coord p0y = point0.getYCoord();
-		Coord p1x = point1.getXCoord();
-		Coord p1y = point1.getYCoord();
+		const Coord p0x = point0.getXCoord();
+		const Coord p0y = point0.getYCoord();
+		const Coord p1x = point1.getXCoord();
+		const Coord p1y = point1.getYCoord();
 
-		Coord p2x = line.getPoint0().getXCoord();
-		Coord p2y = line.getPoint0().getYCoord();
-		Coord p3x = line.getPoint1().getXCoord();
-		Coord p3y = line.getPoint1().getYCoord();
+		const Coord p2x = line.getPoint0().getXCoord();
+		const Coord p2y = line.getPoint0().getYCoord();
+		const Coord p3x = line.getPoint1().getXCoord();
+		const Coord p3y = line.getPoint1().getYCoord();
 
-		Coord s1x, s1y, s2x, s2y;
-		s1x = p1x - p0x;
-		s1y = p1y - p0y;
+		const Coord s1x = p1x - p0x;
+		const Coord s1y = p1y - p0y;
 
-		s2x = p3x - p2x;
-		s2y = p3y - p2y;
+		const Coord s2x = p3x - p2x;
+		const Coord s2y = p3y - p2y;
 
-		Coord s, t;
-		s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
-		t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
+		const Coord s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
+		const Coord t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
 
 		if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
 			collisionPoint.setXCoord(p0x + (t * s1x));
@@ -1146,7 +1144,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
-		path.push_back(shuttle.getPosition());
+		path.push_back(shuttle.getPosition()) ;
 
 		if (shuttle.goodForLanding(surface->getLandingZone())) {
 			chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
@@ -1160,6 +1158,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 			surface->collisionWithSurface(lastPosition, shuttle.getPosition(), collisionPoint, landingZoneCrash);
 
 			if (collisionPoint.isValid()) {
+				path[path.size() - 1] = collisionPoint;
 				break;
 			}
 		}
