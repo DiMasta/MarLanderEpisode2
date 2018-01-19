@@ -47,12 +47,16 @@ const float MARS_GRAVITY = 3.711f;
 const float SAVE_DISTANCE_TO_LANDING_ZONE = 50.f;
 const float MAX_V_ABS_SPEED = 40.f;
 const float MAX_H_ABS_SPEED = 20.f;
+const float MAX_OUT_OF_LANDING_AREA_SCORE = 100.f;
+const float MAX_LANDING_AREA_BIG_SPEED_SCORE = 200.f;
+const float MAX_LANDING_AREA_NORMAL_SPEED_SCORE = 300.f;
+const float SPEED_PENALTY_WEIGHT = .1f;
 
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;//300
-const int POPULATION_SIZE = 400;
+const int POPULATION_SIZE = 100;
 const int MAX_POPULATION = 1;
 //const int BEST_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * BEST_CHROMOSOMES_PERCENT);
 //const int OTHERS_CHROMOSOMES_COUNT = static_cast<int>(POPULATION_SIZE * OTHERS_CHROMOSOMES_PERCENT);
@@ -1120,45 +1124,6 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-/*
-var currentSpeed = Math.sqrt(Math.pow(this.xspeed, 2) + Math.pow(this.yspeed, 2));
-
-// 0-100: crashed somewhere, calculate score by distance to landing area
-if (!hitLandingArea) {
-
-	var lastX = this.points[this.points.length-2][0];
-	var lastY = this.points[this.points.length-2][1];
-	var distance = level.getDistanceToLandingArea(lastX, lastY);
-
-	// Calculate score from distance
-	this.score = 100 - (100 * distance / level.max_dist);
-
-	// High speeds are bad, they decrease maneuvrability
-	var speedPen = 0.1 * Math.max(currentSpeed - 100, 0);
-	this.score -= speedPen;
-}
-
-// 100-200: crashed into landing area, calculate score by speed above safety
-else if (this.yspeed < -40 || 20 < Math.abs(this.xspeed)) {
-	var xPen = 0;
-	if (20 < Math.abs(this.xspeed)) {
-		xPen = (Math.abs(this.xspeed) - 20) / 2
-	}
-
-	var yPen = 0
-	if (this.yspeed < -40) {
-		yPen = (-40 - this.yspeed) / 2
-	}
-	this.score = 200 - xPen - yPen
-	return;
-}
-
-// 200-300: landed safely, calculate score by fuel remaining
-else {
-	this.score = 200 + (100 * this.fuel / this.initFuel)
-}
-*/
-
 void Chromosome::evaluate(Surface* surface) {
 	float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
 	float hSpeed = abs(shuttle.getHSpeed());
@@ -1166,9 +1131,11 @@ void Chromosome::evaluate(Surface* surface) {
 	float currentSpeed = sqrt((hSpeed * hSpeed) + (vSpeed * vSpeed));
 	
 	if (dist > 0.f) {
-		evaluation = 100.f - (100.f * (dist / surface->getMaxDistance()));
+		evaluation = MAX_OUT_OF_LANDING_AREA_SCORE -
+			(MAX_OUT_OF_LANDING_AREA_SCORE * (dist / surface->getMaxDistance()));
 
-		float speedPen = .1f * max(currentSpeed - 100.f, 0.f);
+		float speedPen = SPEED_PENALTY_WEIGHT *
+			max(currentSpeed - MAX_OUT_OF_LANDING_AREA_SCORE, 0.f);
 		evaluation -= speedPen;
 	}
 	else if (hSpeed > MAX_H_ABS_SPEED || vSpeed > MAX_V_ABS_SPEED) {
@@ -1182,10 +1149,11 @@ void Chromosome::evaluate(Surface* surface) {
 			vPen = (vSpeed - MAX_V_ABS_SPEED) / 2;
 		}
 
-		evaluation = 200.f - hPen - vPen;
+		evaluation = MAX_LANDING_AREA_BIG_SPEED_SCORE - hPen - vPen;
 	}
 	else {
-		evaluation = 200.f + (100.f * (shuttle.getFuel() / shuttle.getInitialFuel()));
+		evaluation = MAX_LANDING_AREA_BIG_SPEED_SCORE +
+			(MAX_OUT_OF_LANDING_AREA_SCORE * (shuttle.getFuel() / shuttle.getInitialFuel()));
 	}
 
 	//evaluation = dist;	
@@ -1211,7 +1179,7 @@ Gene Chromosome::getGene(int geneIdx) const {
 void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	path.clear();
 
-	shuttle.setInitialFuel(shuttle.getInitialFuel());
+	shuttle.setInitialFuel(shuttle.getFuel());
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
@@ -1264,15 +1232,25 @@ public:
 	GeneticPopulation();
 	~GeneticPopulation();
 
+	Chromosomes getPopulation() const {
+		return population;
+	}
+
 	Surface getSurface() const {
 		return surface;
 	}
 
+	float getEvaluationsSum() const {
+		return evaluationsSum;
+	}
+
 	void setSurface(const Surface& surface) { this->surface = surface; }
+	void setChromosomes(const Chromosomes& population) { this->population = population; }
+	void setEvaluationsSum(float evaluationsSum) { this->evaluationsSum = evaluationsSum; }
 
 	void initRandomPopulation();
 	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
-	void sortChromosomes();
+	void arrangeChromosomesByEvaluation();
 	void chooseParents(Chromosomes& parents);
 	void makeChildren(Chromosomes& parents, Chromosomes& children);
 	void crossover(const Chromosome& parent0, const Chromosome& parent1, Chromosome& child);
@@ -1284,6 +1262,7 @@ public:
 private:
 	Chromosomes population;
 	Surface surface;
+	float evaluationsSum;
 };
 
 //*************************************************************************************************************
@@ -1291,7 +1270,8 @@ private:
 
 GeneticPopulation::GeneticPopulation() :
 	population(POPULATION_SIZE),
-	surface()
+	surface(),
+	evaluationsSum(0.f)
 {
 }
 
@@ -1371,6 +1351,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 		}
 
 		chromosome->evaluate(&surface);
+		evaluationsSum += chromosome->getEvaluation();
 	}
 
 	return foundResChromosome;
@@ -1379,8 +1360,22 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::sortChromosomes() {
-	sort(population.begin(), population.end());
+void GeneticPopulation::arrangeChromosomesByEvaluation() {
+	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
+		Chromosome& chromosome = population[chromIdx];
+		float normEvaluation = chromosome.getEvaluation() / evaluationsSum;
+		chromosome.setEvaluation(normEvaluation);
+	}
+
+	sort(population.rbegin(), population.rend());
+
+	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
+		Chromosome& chromosome = population[chromIdx];
+		if (0 < chromIdx) {
+			float prevEvaluation = population[chromIdx - 1].getEvaluation();
+			chromosome.setEvaluation(prevEvaluation + chromosome.getEvaluation());
+		}
+	}
 }
 
 //*************************************************************************************************************
@@ -1686,7 +1681,7 @@ void Game::turnBegin() {
 	int populationId = 0;
 	while (!answerFound) {
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromosome);
-		geneticPopulation.sortChromosomes();
+		geneticPopulation.arrangeChromosomesByEvaluation();
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
 		string populationIdSVGData = svgManager.constructGId(populationId++);
