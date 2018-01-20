@@ -58,7 +58,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;//300
-const int POPULATION_SIZE = 2;
+const int POPULATION_SIZE = 10;
 const int MAX_POPULATION = 1;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const int CROSSOVER_POINT = CHROMOSOME_SIZE / 2;
@@ -1262,9 +1262,19 @@ public:
 	void initRandomPopulation();
 	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
 	void arrangeChromosomesByEvaluation();
-	void selectParentsForChild(const Chromosome* parent0, const Chromosome* parent1) const;
+	void selectParentsForChild(
+		const Chromosome** parent0,
+		const Chromosome** parent1
+	) const;
 	void makeChildren(Chromosomes& children);
-	void crossover(const Chromosome& parent0, const Chromosome& parent1, Chromosome& child);
+
+	void crossover(
+		const Chromosome& parent0,
+		const Chromosome& parent1,
+		Chromosome& child0,
+		Chromosome& child
+	);
+
 	void resetChildFlags();
 	void makeNextGeneration();
 	int selectParent(float randomFloat) const;
@@ -1415,7 +1425,10 @@ int GeneticPopulation::selectParent(float randomFloat) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::selectParentsForChild(const Chromosome* parent0, const Chromosome* parent1) const {
+void GeneticPopulation::selectParentsForChild(
+	const Chromosome** parent0,
+	const Chromosome** parent1
+) const {
 	float randomFloat = Math::randomFloatBetween0and1();
 
 	const int parent0Idx = selectParent(randomFloat);
@@ -1429,8 +1442,8 @@ void GeneticPopulation::selectParentsForChild(const Chromosome* parent0, const C
 		parent1Idx = selectParent(randomFloat);
 	}
 
-	parent0 = &population[parent0Idx];
-	parent1 = &population[parent1Idx];
+	*parent0 = &population[parent0Idx];
+	*parent1 = &population[parent1Idx];
 }
 
 //*************************************************************************************************************
@@ -1438,34 +1451,43 @@ void GeneticPopulation::selectParentsForChild(const Chromosome* parent0, const C
 
 void GeneticPopulation::makeChildren(Chromosomes& children) {
 	for (int childIdx = 0; childIdx < CHILDREN_COUNT; ++childIdx) {
-		Chromosome* parent0 = nullptr;
-		Chromosome* parent1 = nullptr;
-		selectParentsForChild(parent0, parent1);
+		const Chromosome* parent0 = nullptr;
+		const Chromosome* parent1 = nullptr;
+		selectParentsForChild(&parent0, &parent1);
 
 		//!! Check if returned value is better than local and reference
-		Chromosome child;
+		Chromosome child0;
+		Chromosome child1;
 
 		//!! Measure the dereferencing of the pointer
-		crossover(*parent0, *parent1, child);
-		children.push_back(child);
+		crossover(*parent0, *parent1, child0, child1);
+		children.push_back(child0);
+		children.push_back(child1);
 	}
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::crossover(const Chromosome& parent0, const Chromosome& parent1, Chromosome& child) {
+void GeneticPopulation::crossover(
+	const Chromosome& parent0,
+	const Chromosome& parent1,
+	Chromosome& child0,
+	Chromosome& child1
+) {
 	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 		Gene& parent0gene = parent0.getGene(geneIdx);
 		Gene& parent1gene = parent1.getGene(geneIdx);
 
-		Gene& gene = parent0gene;
 		float randomfloat = Math::randomFloatBetween0and1();
 		if (randomfloat >= CROSSOVER_GENE_PROB) {
-			gene = parent1gene;
+			child0.addGene(parent0gene);
+			child1.addGene(parent1gene);
 		}
-
-		child.addGene(gene);
+		else {
+			child0.addGene(parent1gene);
+			child1.addGene(parent0gene);
+		}
 	}
 }
 
