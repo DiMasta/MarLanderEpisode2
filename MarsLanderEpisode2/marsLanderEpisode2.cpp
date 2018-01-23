@@ -59,8 +59,8 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 60;//300
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 1;
-const int CHILDREN_COUNT = POPULATION_SIZE * 100;
+const int MAX_POPULATION = 6;
+const int CHILDREN_COUNT = POPULATION_SIZE;
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -1109,7 +1109,7 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append(STYLE_BEGIN);
 	svgStr.append(FILL_NONE);
 
-	string strokeRGB = svgManager.constructStrokeForRGB(255, 0, 0);
+	string strokeRGB = svgManager.constructStrokeForRGB(255, int(255.f * evaluation), int(255.f * evaluation));
 	if (isChild) {
 		strokeRGB = svgManager.constructStrokeForRGB(0, 255, 0);
 	}
@@ -1262,8 +1262,7 @@ public:
 	void arrangeChromosomesByEvaluation();
 	void selectParentsForChild(
 		const Chromosome** parent0,
-		const Chromosome** parent1,
-		int* parentsChosen
+		const Chromosome** parent1
 	) const;
 	void makeChildren(Chromosomes& children);
 
@@ -1277,6 +1276,7 @@ public:
 	void resetChildFlags();
 	void makeNextGeneration();
 	int selectParent(float randomFloat) const;
+	void reset();
 
 	string constructSVGData(const SVGManager& svgManager) const;
 
@@ -1403,8 +1403,6 @@ void GeneticPopulation::arrangeChromosomesByEvaluation() {
 //*************************************************************************************************************
 
 int GeneticPopulation::selectParent(float randomFloat) const {
-	//cout << randomFloat << endl;
-
 	int parentChromIdx = static_cast<int>(population.size() - 1);
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
@@ -1420,19 +1418,23 @@ int GeneticPopulation::selectParent(float randomFloat) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+void GeneticPopulation::reset() {
+	evaluationsSum = 0.f;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void GeneticPopulation::selectParentsForChild(
 	const Chromosome** parent0,
-	const Chromosome** parent1,
-	int* parentsChosen
+	const Chromosome** parent1
 ) const {
 	float randomFloat = Math::randomFloatBetween0and1();
 
 	const int parent0Idx = selectParent(randomFloat);
-	parentsChosen[parent0Idx]++;
 
 	randomFloat = Math::randomFloatBetween0and1();
 	int parent1Idx = selectParent(randomFloat);
-	parentsChosen[parent1Idx]++;
 
 	*parent0 = &population[parent0Idx];
 	*parent1 = &population[parent1Idx];
@@ -1442,12 +1444,10 @@ void GeneticPopulation::selectParentsForChild(
 //*************************************************************************************************************
 
 void GeneticPopulation::makeChildren(Chromosomes& children) {
-	int parentsChosenCount[POPULATION_SIZE] = { 0 };
-
 	for (int childIdx = 0; childIdx < CHILDREN_COUNT; ++childIdx) {
 		const Chromosome* parent0 = nullptr;
 		const Chromosome* parent1 = nullptr;
-		selectParentsForChild(&parent0, &parent1, parentsChosenCount);
+		selectParentsForChild(&parent0, &parent1);
 
 		//!! Check if returned value is better than local and reference
 		Chromosome child0;
@@ -1457,12 +1457,6 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 		crossover(*parent0, *parent1, child0, child1);
 		children.push_back(child0);
 		children.push_back(child1);
-	}
-
-	for (size_t chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
-		cout << "Chromosome[" << chromIdx << "]: Evaluation: ";
-		cout << population[chromIdx].getEvaluation() << " Times Chosen: ";
-		cout << parentsChosenCount[chromIdx] << endl;
 	}
 }
 
@@ -1725,8 +1719,10 @@ void Game::turnBegin() {
 
 	int populationId = 0;
 	while (!answerFound) {
+		geneticPopulation.reset();
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromosome);
 		geneticPopulation.arrangeChromosomesByEvaluation();
+
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
 		string populationIdSVGData = svgManager.constructGId(populationId++);
