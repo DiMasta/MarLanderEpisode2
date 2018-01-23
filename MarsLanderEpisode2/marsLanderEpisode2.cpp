@@ -57,9 +57,9 @@ const float FLOAT_MAX_RAND = static_cast<float>(RAND_MAX);
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 60;//300
+const int CHROMOSOME_SIZE = 100;//300
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 6;
+const int MAX_POPULATION = 100;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 
 const int INVALID_ROTATION_ANGLE = 100;
