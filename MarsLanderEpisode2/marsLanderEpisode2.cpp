@@ -18,7 +18,7 @@
 #define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
+#define SIMULATION_OUTPUT
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -827,11 +827,11 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	rotate = newAngle;
 
 #ifdef SIMULATION_OUTPUT
-	cout << "Turn=" << turn++ << endl;
-	cout << "X=" << newX << "m, Y=" << newY << "m, ";
-	cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
-	cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
-	cout << endl << endl;
+	//cout << "Turn=" << turn++ << endl;
+	//cout << "X=" << newX << "m, Y=" << newY << "m, ";
+	//cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
+	//cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
+	//cout << endl << endl;
 #endif // SIMULATION_OUTPUT
 }
 
@@ -1362,7 +1362,7 @@ void GeneticPopulation::initRandomPopulation() {
 			population[chromIdx].addGene(gene);
 
 #ifdef SIMULATION_OUTPUT
-			cout << currentAngle << ", " << randPower << endl;
+			//cout << currentAngle << ", " << randPower << endl;
 #endif // SIMULATION_OUTPUT
 		}
 	}
@@ -1825,6 +1825,15 @@ void Game::turnBegin() {
 		geneticPopulation.makeNextGeneration();
 
 		if (populationId == MAX_POPULATION) {
+
+#ifdef SIMULATION_OUTPUT
+			const Genes& genes = geneticPopulation.getPopulation()[44].getChromosome();
+			for (size_t geneIdx = 0; geneIdx < genes.size(); ++geneIdx) {
+				const Gene& gene = genes[geneIdx];
+				cout << gene.rotate << ", " << gene.power << ","<< endl;
+			}
+#endif // SIMULATION_OUTPUT
+
 			break;
 		}
 	}
