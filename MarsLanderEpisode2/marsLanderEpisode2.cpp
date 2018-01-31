@@ -909,6 +909,8 @@ struct Gene {
 
 	Gene& operator=(const Gene& other);
 
+	void clamp();
+
 	int rotate;
 	int power;
 };
@@ -944,6 +946,14 @@ Gene& Gene::operator=(const Gene& other) {
 	}
 
 	return *this;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Gene::clamp() {
+	rotate = max(MIN_ROTATION_ANGLE, min(rotate, MAX_ROTATION_ANGLE));
+	power = max(MIN_POWER, min(power, MAX_POWER));
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1559,6 +1569,9 @@ void GeneticPopulation::crossover(
 
 		mutateGene(parent0OriginalEvaluation, parent1OriginalEvaluation, geneIdx, parent0Gene);
 		mutateGene(parent0OriginalEvaluation, parent1OriginalEvaluation, geneIdx, parent1Gene);
+
+		parent0Gene.clamp();
+		parent1Gene.clamp();
 
 		float randomfloat = Math::randomFloatBetween0and1();
 		if (randomfloat >= CROSSOVER_GENE_PROB) {
