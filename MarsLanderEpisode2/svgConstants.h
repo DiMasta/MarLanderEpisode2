@@ -109,12 +109,15 @@ function changePopulationText(populationNumber) {\n\
 window.onkeydown = function(e) {\n\
 	var key = e.keyCode ? e.keyCode : e.which;\n\
 	\n\
+	// Numpad \"+\"\n\
 	if (107 == key) {\n\
 		showNextSim();\n\
 	}\n\
+	// Numpad \"-\"\n\
 	else if (109 == key) {\n\
 		showPreviousSim(); \n\
 	}\n\
+	// Numpad \"*\"\n\
 	else if (106 == key) {\n\
 		wholeSimulation(turn);\n\
 	}\n\
