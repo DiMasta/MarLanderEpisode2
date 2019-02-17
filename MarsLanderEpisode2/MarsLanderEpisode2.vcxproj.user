@@ -4,4 +4,8 @@
     <LocalDebuggerCommandArguments />
     <RemoteDebuggerCommandArguments />
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+  </PropertyGroup>
 </Project>
