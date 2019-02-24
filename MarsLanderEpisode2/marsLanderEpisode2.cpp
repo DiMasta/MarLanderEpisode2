@@ -58,8 +58,8 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 2;
-const int MAX_POPULATION = 2;
+const int POPULATION_SIZE = 10;
+const int MAX_POPULATION = 5;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 
 const int INVALID_ROTATION_ANGLE = 100;
@@ -1465,6 +1465,42 @@ void GeneticPopulation::selectParentsForChild(
 //*************************************************************************************************************
 
 void GeneticPopulation::makeChildren(Chromosomes& children) {
+	// Experimental crossover, just to see the result
+	// For the actual crossover good selection will be requried with some more R&D for all parameters that affect the solution
+	for (int parentIdx = 0; parentIdx < CHILDREN_COUNT; parentIdx += 2) {
+		const Chromosome& parent0 = population[parentIdx];
+		const Chromosome& parent1 = population[parentIdx + 1];
+
+		Chromosome child0;
+		Chromosome child1;
+
+		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+			const float beta = Math::randomFloatBetween0and1();
+			const float parent0Rotate = static_cast<float>(parent0.getGene(geneIdx).rotate);
+			const float parent1Rotate = static_cast<float>(parent1.getGene(geneIdx).rotate);
+			const float parent0Power = static_cast<float>(parent0.getGene(geneIdx).power);
+			const float parent1Power = static_cast<float>(parent1.getGene(geneIdx).power);
+
+			float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
+			float child1Rotation = ((1.f - beta) * parent0Rotate) + (parent1Rotate);
+			float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
+			float child1Power = ((1.f - beta) * parent0Power) + (parent1Power);
+
+			Gene child0Gene;
+			child0Gene.rotate = static_cast<int>(round(child0Rotation));
+			child0Gene.power = static_cast<int>(round(child0Power));
+
+			Gene child1Gene;
+			child1Gene.rotate = static_cast<int>(round(child1Rotation));
+			child1Gene.power = static_cast<int>(round(child1Power));
+
+			child0.addGene(child0Gene);
+			child1.addGene(child1Gene);
+		}
+
+		children.push_back(child0);
+		children.push_back(child1);
+	}
 }
 
 //*************************************************************************************************************
