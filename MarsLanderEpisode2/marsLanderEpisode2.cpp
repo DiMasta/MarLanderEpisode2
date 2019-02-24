@@ -674,16 +674,20 @@ public:
 	void setInitialFuel(int initialFuel) { this->initialFuel = initialFuel; }
 
 	void calculateComponents(
-		int newAngle,
-		int newPower,
 		float initialSpeed,
 		ComponentType componentType,
 		float& displacement,
 		float& acceleration
 	);
 
-	int clampRotateAngle(int newRotateAngle) const;
-	int clampPower(int newPower) const;
+	/// Apply new angle change step, considering the ranges for steps and final angle
+	/// @param[in] newRotateAngleStep the new rotate angle step, may be out of the range [-15, 15] but it will be clamped
+	void applyNewRotateAngle(int newRotateAngleStep);
+
+	/// Apply new power change step, considering the ranges for steps and final power
+	/// @param[in] newPowerStep the new power step, may be out of the range [0, 4] but it will be clamped
+	void applyNewPower(int newPowerStep);
+
 	void simulate(int rotateAngle, int thrustPower);
 	void print() const;
 	bool goodForLanding(const Line& landingZone) const;
@@ -730,14 +734,12 @@ Shuttle::Shuttle(const Shuttle& shuttle) {
 //*************************************************************************************************************
 
 void Shuttle::calculateComponents(
-	int newAngle,
-	int newPower,
 	float initialSpeed,
 	ComponentType componentType,
 	float& displacement,
 	float& acceleration
 ) {
-	int theta = RIGHT_ANGLE + newAngle;
+	int theta = RIGHT_ANGLE + rotate;
 	float rad = theta * PI / (2 * RIGHT_ANGLE);
 
 	float mult = cos(rad);
@@ -745,7 +747,7 @@ void Shuttle::calculateComponents(
 		mult = sin(rad);
 	}
 
-	acceleration = mult * (float)newPower;
+	acceleration = mult * (float)power;
 
 	if (CT_VERTICAL == componentType) {
 		acceleration -= MARS_GRAVITY;
@@ -757,35 +759,25 @@ void Shuttle::calculateComponents(
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-int Shuttle::clampRotateAngle(int newRotateAngle) const {
-	int clampedAngle = newRotateAngle;
-
-	int angleDiff = newRotateAngle - rotate;
-	if (angleDiff > MAX_ROTATION_ANGLE_STEP) {
-		clampedAngle = rotate + MAX_ROTATION_ANGLE_STEP;
-	}
-	else if (angleDiff < MIN_ROTATION_ANGLE_STEP) {
-		clampedAngle = rotate + MIN_ROTATION_ANGLE_STEP;
-	}
-
-	return clampedAngle;
+void Shuttle::applyNewRotateAngle(int newRotateAngleStep) {
+	// First check if the ange change step is in the range [-15, 15]
+	int newRotateAngleStepClamped = min(max(MIN_ROTATION_ANGLE_STEP, newRotateAngleStep), MAX_ROTATION_ANGLE_STEP);
+	int newRotateAngle = rotate + newRotateAngleStepClamped;
+	
+	// Clamp the new angle in the range [-90, 90]
+	rotate = min(max(MIN_ROTATION_ANGLE, newRotateAngle), MAX_ROTATION_ANGLE);
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-int Shuttle::clampPower(int newPower) const {
-	int clampedPower = newPower;
+void Shuttle::applyNewPower(int newPowerStep) {
+	// First check if the power change step is in the range [-1, 1]
+	int newPowerStepClamped = min(max(MIN_POWER_STEP, newPowerStep), MAX_POWER_STEP);
+	int newPower = power + newPowerStepClamped;
 
-	int powerDiff = newPower - power;
-	if (powerDiff > MAX_POWER_STEP) {
-		clampedPower = power + MAX_POWER_STEP;
-	}
-	else if (powerDiff < MIN_POWER_STEP) {
-		clampedPower = power + MIN_POWER_STEP;
-	}
-
-	return clampedPower;
+	// Clamp the new angle in the range [0, 4]
+	power = min(max(MIN_POWER, newPower), MAX_POWER);
 }
 
 //*************************************************************************************************************
@@ -796,10 +788,10 @@ int turn = 1;
 #endif // SIMULATION_OUTPUT
 
 void Shuttle::simulate(int rotateAngle, int thrustPower) {
-	int newAngle = clampRotateAngle(rotateAngle);
-	int newPower = clampPower(thrustPower);
+	applyNewRotateAngle(rotateAngle);
+	applyNewPower(thrustPower);
 
-	int newFuel = fuel - newPower;
+	fuel -= power;
 
 	float displacementX = 0.f;
 	float displacementY = 0.f;
@@ -807,8 +799,8 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	float accelerationX = 0.f;
 	float accelerationY = 0.f;
 
-	calculateComponents(newAngle, newPower, hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
-	calculateComponents(newAngle, newPower, vSpeed, CT_VERTICAL, displacementY, accelerationY);
+	calculateComponents(hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
+	calculateComponents(vSpeed, CT_VERTICAL, displacementY, accelerationY);
 
 	float newX = (float)position.getXCoord() + displacementX;
 	float newY = (float)position.getYCoord() + displacementY;
@@ -821,10 +813,6 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 
 	hSpeed = newHSpeed;
 	vSpeed = newVSpeed;
-
-	fuel = newFuel;
-	power = newPower;
-	rotate = newAngle;
 }
 
 //*************************************************************************************************************
@@ -903,7 +891,10 @@ struct Gene {
 
 	void clamp();
 
+	/// The change in angle, based on previous postion, in range [-15, 15]
 	int rotate;
+
+	/// The change in power, based on previoud postion, in range [-1, 1]
 	int power;
 };
 
@@ -1235,6 +1226,8 @@ public:
 	void setChromosomes(const Chromosomes& population) { this->population = population; }
 	void setEvaluationsSum(float evaluationsSum) { this->evaluationsSum = evaluationsSum; }
 
+	/// Fill with chromosomes which are containing random changes in power [-1, 1] and angle [-15, 15]
+	/// The actual angles which should be outputted at the end are stores in each Chromosome's shuttle (rotate and power memebers)
 	void initRandomPopulation();
 	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
 	void arrangeChromosomesByEvaluation();
@@ -1299,42 +1292,16 @@ void GeneticPopulation::initRandomPopulation() {
 	int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
 	int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
 
-	random_device angleRd; // obtain a random number from hardware
-	mt19937 angleEng(angleRd()); // seed the generator
-	uniform_int_distribution<> rotateDistr(0, maxAngleRand - 1);
-
-	random_device powerRd;
-	mt19937 powerEng(powerRd());
-	uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
-
-	// Real starting values for the shuttle should be taken in account
-	int currentAngle = 0;
-	int currentPower = 0;
-
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 
-			int randAngle = 0;
-			int randPower = 0;
-
-			if (USE_OLDSCHOOL_RAND) {
-				randAngle = rand() % maxAngleRand;
-				randPower = rand() % maxPowerRand;
-			}
-			else {
-				randAngle = rotateDistr(angleEng);
-				randPower = powerDistr(powerEng);
-			}
+			int randAngle = rand() % maxAngleRand;
+			int randPower = rand() % maxPowerRand;
 
 			randAngle += MIN_ROTATION_ANGLE_STEP;
-			currentAngle += randAngle;
-			currentAngle = max(MIN_ROTATION_ANGLE, min(currentAngle, MAX_ROTATION_ANGLE));
-
 			randPower += MIN_POWER_STEP;
-			currentPower += randPower;
-			currentPower = max(MIN_POWER, min(currentPower, MAX_POWER));
 
-			Gene gene(currentAngle, randPower);
+			Gene gene(randAngle, randPower);
 			population[chromIdx].addGene(gene);
 		}
 	}
