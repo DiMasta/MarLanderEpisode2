@@ -509,7 +509,7 @@ void Surface::collisionWithSurface(
 				collisionPoint.setXCoord(p0x + (t * s1x));
 				collisionPoint.setYCoord(p0y + (t * s1y));
 
-				crashLineIdx = lineIdx;
+				crashLineIdx = static_cast<int>(lineIdx);
 			}
 		}
 	}
@@ -825,14 +825,6 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	fuel = newFuel;
 	power = newPower;
 	rotate = newAngle;
-
-#ifdef SIMULATION_OUTPUT
-	//cout << "Turn=" << turn++ << endl;
-	//cout << "X=" << newX << "m, Y=" << newY << "m, ";
-	//cout << "HSPeed=" << newHSpeed << "m/s VSpeed=" << newVSpeed << "m/s\n";
-	//cout << "Fuel=" << newFuel << "l, Angle=" << newAngle << ", Power=" << newPower << "m/s2\n";
-	//cout << endl << endl;
-#endif // SIMULATION_OUTPUT
 }
 
 //*************************************************************************************************************
@@ -1152,37 +1144,7 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 
 void Chromosome::evaluate(Surface* surface) {
 	float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
-	float hSpeed = abs(shuttle.getHSpeed());
-	float vSpeed = abs(shuttle.getVSpeed());
-	float currentSpeed = sqrt((hSpeed * hSpeed) + (vSpeed * vSpeed));
-	
-	if (dist > 0.f) {
-		evaluation = MAX_OUT_OF_LANDING_AREA_SCORE -
-			(MAX_OUT_OF_LANDING_AREA_SCORE * (dist / surface->getMaxDistance()));
-
-		float speedPen = SPEED_PENALTY_WEIGHT *
-			max(currentSpeed - MAX_OUT_OF_LANDING_AREA_SCORE, 0.f);
-		evaluation -= speedPen;
-	}
-	else if (hSpeed > MAX_H_ABS_SPEED || vSpeed > MAX_V_ABS_SPEED) {
-		float hPen = 0.f;
-		if (MAX_H_ABS_SPEED < hSpeed) {
-			hPen = (hSpeed - MAX_H_ABS_SPEED) / 2;
-		}
-
-		float vPen = 0.f;
-		if (MAX_V_ABS_SPEED < vSpeed) {
-			vPen = (vSpeed - MAX_V_ABS_SPEED) / 2;
-		}
-
-		evaluation = MAX_LANDING_AREA_BIG_SPEED_SCORE - hPen - vPen;
-	}
-	else {
-		evaluation = MAX_LANDING_AREA_BIG_SPEED_SCORE +
-			(MAX_OUT_OF_LANDING_AREA_SCORE * (shuttle.getFuel() / shuttle.getInitialFuel()));
-	}
-
-	//evaluation = dist;	
+	evaluation = dist;
 }
 
 //*************************************************************************************************************
@@ -1205,7 +1167,6 @@ Gene Chromosome::getGene(int geneIdx) const {
 void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	path.clear();
 
-	shuttle.setInitialFuel(shuttle.getFuel());
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
@@ -1336,8 +1297,7 @@ GeneticPopulation::~GeneticPopulation() {
 
 void GeneticPopulation::initRandomPopulation() {
 	int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
-	//int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
-	int maxPowerRand = MAX_POWER + 1;
+	int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
 
 	random_device angleRd; // obtain a random number from hardware
 	mt19937 angleEng(angleRd()); // seed the generator
@@ -1347,7 +1307,9 @@ void GeneticPopulation::initRandomPopulation() {
 	mt19937 powerEng(powerRd());
 	uniform_int_distribution<> powerDistr(MIN_POWER, MAX_POWER);
 
+	// Real starting values for the shuttle should be taken in account
 	int currentAngle = 0;
+	int currentPower = 0;
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
@@ -1368,12 +1330,12 @@ void GeneticPopulation::initRandomPopulation() {
 			currentAngle += randAngle;
 			currentAngle = max(MIN_ROTATION_ANGLE, min(currentAngle, MAX_ROTATION_ANGLE));
 
+			randPower += MIN_POWER_STEP;
+			currentPower += randPower;
+			currentPower = max(MIN_POWER, min(currentPower, MAX_POWER));
+
 			Gene gene(currentAngle, randPower);
 			population[chromIdx].addGene(gene);
-
-#ifdef SIMULATION_OUTPUT
-			//cout << currentAngle << ", " << randPower << endl;
-#endif // SIMULATION_OUTPUT
 		}
 	}
 }
@@ -1438,7 +1400,7 @@ int GeneticPopulation::selectParent(float randomFloat) const {
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		if (randomFloat < population[chromIdx].getEvaluation()) {
-			parentChromIdx = chromIdx;
+			parentChromIdx = static_cast<int>(chromIdx);
 			break;
 		}
 	}
@@ -1525,20 +1487,6 @@ void GeneticPopulation::selectParentsForChild(
 //*************************************************************************************************************
 
 void GeneticPopulation::makeChildren(Chromosomes& children) {
-	for (int childIdx = 0; childIdx < CHILDREN_COUNT; ++childIdx) {
-		const Chromosome* parent0 = nullptr;
-		const Chromosome* parent1 = nullptr;
-		selectParentsForChild(&parent0, &parent1);
-
-		//!! Check if returned value is better than local and reference
-		Chromosome child0;
-		Chromosome child1;
-
-		//!! Measure the dereferencing of the pointer
-		crossover(*parent0, *parent1, child0, child1);
-		children.push_back(child0);
-		children.push_back(child1);
-	}
 }
 
 //*************************************************************************************************************
@@ -1598,8 +1546,6 @@ void GeneticPopulation::resetChildFlags() {
 //*************************************************************************************************************
 
 void GeneticPopulation::makeNextGeneration() {
-	//resetChildFlags();
-
 	Chromosomes children;
 	makeChildren(children);
 
