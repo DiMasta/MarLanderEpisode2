@@ -58,8 +58,8 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 10;
-const int MAX_POPULATION = 5;
+const int POPULATION_SIZE = 100;
+const int MAX_POPULATION = 100;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 
 const int INVALID_ROTATION_ANGLE = 100;
