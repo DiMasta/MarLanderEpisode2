@@ -18,7 +18,7 @@
 #define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
+//#define SIMULATION_OUTPUT
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -58,8 +58,8 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 100;
+const int POPULATION_SIZE = 2;
+const int MAX_POPULATION = 2;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 
 const int INVALID_ROTATION_ANGLE = 100;
@@ -761,6 +761,7 @@ void Shuttle::calculateComponents(
 
 void Shuttle::applyNewRotateAngle(int newRotateAngleStep) {
 	// First check if the ange change step is in the range [-15, 15]
+	// It may be outside of the range, after a crossoverb
 	int newRotateAngleStepClamped = min(max(MIN_ROTATION_ANGLE_STEP, newRotateAngleStep), MAX_ROTATION_ANGLE_STEP);
 	int newRotateAngle = rotate + newRotateAngleStepClamped;
 	
@@ -773,6 +774,7 @@ void Shuttle::applyNewRotateAngle(int newRotateAngleStep) {
 
 void Shuttle::applyNewPower(int newPowerStep) {
 	// First check if the power change step is in the range [-1, 1]
+	// It may be outside of the range, after a crossover
 	int newPowerStepClamped = min(max(MIN_POWER_STEP, newPowerStep), MAX_POWER_STEP);
 	int newPower = power + newPowerStepClamped;
 
@@ -968,6 +970,10 @@ public:
 		return chromosome;
 	}
 
+	Genes getOutputCommands() const {
+		return outputCommands;
+	}
+
 	Path getPath() const {
 		return path;
 	}
@@ -1010,11 +1016,12 @@ private:
 	float evaluation;
 	float originalEvaluation;
 	bool isChild;
-	Coords collisionPoint;
+	Coords collisionPoint; /// Calculations for the crash point may slitly vary from the platform
 	int crashLineIdx;
 
 	Genes chromosome;
-	Path path;
+	Genes outputCommands; /// Actual commands for the online platform, could be OPTIMIZED when solution is found
+	Path path; /// Used to store the path which will be visualized in SVG, could be OPTIMIZED when solution is found
 };
 
 //*************************************************************************************************************
@@ -1028,7 +1035,8 @@ Chromosome::Chromosome() :
 	path(),
 	isChild(false),
 	collisionPoint(),
-	crashLineIdx(INVALID_ID)
+	crashLineIdx(INVALID_ID),
+	outputCommands()
 {
 
 }
@@ -1161,6 +1169,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
+		outputCommands.push_back(Gene(shuttle.getRotate(), shuttle.getPower()));
 		path.push_back(shuttle.getPosition());
 
 		if (shuttle.goodForLanding(surface->getLandingZone())) {
@@ -1170,7 +1179,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 			break;
 		}
 
-		if (0 < geneIdx) {
+		if (geneIdx > 0) {
 			const Coords& lastPosition = path[geneIdx - 1];
 			surface->collisionWithSurface(lastPosition, shuttle.getPosition(), collisionPoint, crashLineIdx);
 
@@ -1304,6 +1313,8 @@ void GeneticPopulation::initRandomPopulation() {
 			Gene gene(randAngle, randPower);
 			population[chromIdx].addGene(gene);
 		}
+
+		// May be here simulate the genes from the chromosome to get the initial paths of the shuttle
 	}
 }
 
@@ -1352,7 +1363,7 @@ void GeneticPopulation::arrangeChromosomesByEvaluation() {
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		Chromosome& chromosome = population[chromIdx];
-		if (0 < chromIdx) {
+		if (chromIdx > 0) {
 			float prevEvaluation = population[chromIdx - 1].getEvaluation();
 			chromosome.setEvaluation(prevEvaluation + chromosome.getEvaluation());
 		}
@@ -1748,18 +1759,17 @@ void Game::turnBegin() {
 		svgManager.filePrintStr(NEW_LINE);
 #endif // SVG
 
+#ifdef SIMULATION_OUTPUT
+		// Commands to directly debug on the online platform
+		const Genes& genes = geneticPopulation.getPopulation()[0].getOutputCommands();
+		for (size_t geneIdx = 0; geneIdx < genes.size(); ++geneIdx) {
+			cout << genes[geneIdx].rotate << ", " << genes[geneIdx].power << "," << endl;
+		}
+#endif // SIMULATION_OUTPUT
+
 		geneticPopulation.makeNextGeneration();
 
 		if (populationId == MAX_POPULATION) {
-
-#ifdef SIMULATION_OUTPUT
-			const Genes& genes = geneticPopulation.getPopulation()[44].getChromosome();
-			for (size_t geneIdx = 0; geneIdx < genes.size(); ++geneIdx) {
-				const Gene& gene = genes[geneIdx];
-				cout << gene.rotate << ", " << gene.power << ","<< endl;
-			}
-#endif // SIMULATION_OUTPUT
-
 			break;
 		}
 	}

@@ -6,114 +6,43 @@
 using namespace std;
 
 int out[] = {
-    -67, 1,
-    -60, 1,
-    -39, 3,
-    -73, 2,
-    74, 3,
-    -78, 3,
-    -38, 4,
-    -43, 3,
-    -79, 4,
-    8, 2,
-    -11, 3,
-    -38, 4,
-    -55, 4,
-    -66, -2,
-    47, 4,
-    -25, 2,
-    -14, 3,
-    -8, 3,
-    -48, 2,
-    -31, 2,
-    -21, 3,
-    -74, -1,
-    -47, 3,
-    -67, 3,
-    -15, -1,
-    -85, 3,
-    -53, 2,
-    -10, 0,
-    -40, 0,
-    -39, 2,
-    -47, 0,
-    -85, 0,
-    -85, 4,
-    -43, -4,
-    18, 2,
-    -87, 0,
-    -19, 1,
-    -9, 3,
-    -79, -1,
-    -16, 0,
-    -41, 1,
-    40, -2,
-    -27, 2,
-    31, 2,
-    -33, 0,
-    52, 0,
-    -13, 1,
-    56, 3,
-    -75, 1,
-    19, -5,
-    -56, -1,
-    -53, 1,
-    -76, -4,
-    -68, 1,
-    -82, 0,
-    -100, 1,
-    18, -4,
-    -92, -3,
-    52, -3,
-    51, -4,
-    -45, 2,
-    19, -2,
-    -102, -4,
-    -56, -6,
-    60, 1,
-    -64, -2,
-    -32, -4,
-    74, -2,
-    1, -2,
-    -28, 0,
-    -55, -1,
-    2, -4,
-    40, -1,
-    60, 0,
-    7, 1,
-    -68, -4,
-    12, -5,
-    79, -3,
-    -59, -3,
-    -27, 1,
-    -37, -1,
-    0, 1,
-    30, 0,
-    -75, 2,
-    71, 0,
-    -32, 1,
-    63, 2,
-    -10, -3,
-    8, 2,
-    -14, 2,
-    110, -3,
-    -110, -4,
-    55, -3,
-    110, -6,
-    2, 0,
-    -85, -6,
-    -41, -4,
-    -35, -5,
-    -32, -5,
-    -62, -2
+    -5, 1,
+	-10, 1,
+	-14, 1,
+	-21, 0,
+	-13, 1,
+	-27, 2,
+	-42, 1,
+	-47, 2,
+	-43, 3,
+	-36, 2,
+	-24, 1,
+	-12, 0,
+	-14, 0,
+	1, 1,
+	-12, 2,
+	-5, 1,
+	-5, 0,
+	-11, 0,
+	4, 0,
+	5, 0,
+	18, 0,
+	15, 0,
+	3, 1,
+	1, 1,
+	-2, 1,
+	-14, 2,
+	-10, 1,
+	-14, 1,
+	-17, 0,
+	-31, 0,
+	-37, 1,
+	-27, 0,
+	-33, 0,
+	-29, 1
 };
 
-/**
- * Auto-generated code below aims at helping you parse
- * the standard input according to the problem statement.
- **/
-int main()
-{
+int main() {
     int surfaceN; // the number of points used to draw the surface of Mars.
     cin >> surfaceN; cin.ignore();
     for (int i = 0; i < surfaceN; i++) {
@@ -135,17 +64,13 @@ int main()
         int power; // the thrust power (0 to 4).
         cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
     
-        cerr << "Turn=" << turn / 2 << endl;
-    	cerr << "X=" << X << "m, Y=" << Y << "m, ";
-	    cerr << "HSPeed=" << hSpeed << "m/s VSpeed=" << vSpeed << "m/s\n";
-    	cerr << "Fuel=" << fuel << "l, Angle=" << rotate << ", Power=" << power << "m/s2\n";
-	    cerr << endl << endl;
-        // Write an action using cout. DON'T FORGET THE "<< endl"
-        // To debug: cerr << "Debug messages..." << endl;
-
-
-        // rotate power. rotate is the desired rotation angle. power is the desired thrust power.
-        cout << out[turn] << " " << out[turn + 1] << endl;
+        //cerr << "Turn=" << turn / 2 << endl;
+    	//cerr << "X=" << X << "m, Y=" << Y << "m, ";
+	    //cerr << "HSPeed=" << hSpeed << "m/s VSpeed=" << vSpeed << "m/s\n";
+    	//cerr << "Fuel=" << fuel << "l, Angle=" << rotate << ", Power=" << power << "m/s2\n";
+	    //cerr << endl << endl;
+        
+		cout << out[turn] << " " << out[turn + 1] << endl;
         
         turn += 2;
     }
