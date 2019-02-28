@@ -1164,6 +1164,8 @@ void Chromosome::evaluate(Surface* surface) {
 	float vSpeed = abs(shuttle.getVSpeed());
 	float vSpeedPortion = 1.f - (vSpeed / MAX_POSSIBLE_VSPEED);
 
+	// After these are polished, add evaluation for the fuel
+
 	evaluation = distPortion + anglePortion + hSpeedPortion + vSpeedPortion;
 	evaluation *= COMBINED_EVALUATION_WEIGHT;
 }
@@ -1485,6 +1487,16 @@ void GeneticPopulation::selectParentsForChild(
 //*************************************************************************************************************
 
 void GeneticPopulation::makeChildren(Chromosomes& children) {
+	// While the new population is not completly filled
+	// select a pair of parents
+	// crossover those parents using the Continuos Genetic Algorithm technique
+	// mutate them using the Continuos Genetic Algorithm technique
+	while (children.size() < CHILDREN_COUNT) {
+
+	}
+
+
+
 	// Experimental crossover, just to see the result
 	// For the actual crossover good selection will be requried with some more R&D for all parameters that affect the solution
 	for (int parentIdx = 0; parentIdx < CHILDREN_COUNT; parentIdx += 2) {
@@ -1582,6 +1594,8 @@ void GeneticPopulation::resetChildFlags() {
 void GeneticPopulation::makeNextGeneration() {
 	Chromosomes children;
 	makeChildren(children);
+
+	// Apply elitism, get the best chromosomes from the population and overwrite some children
 
 	population.clear();
 	population = children;
