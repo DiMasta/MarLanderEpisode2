@@ -31,7 +31,7 @@ const bool USE_OLDSCHOOL_RAND = 1;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
-const int MAX_DISTANCE = MAP_WIDTH * MAP_WIDTH;
+const float MAX_DISTANCE = static_cast<float>(sqrt((MAP_WIDTH * MAP_WIDTH) + (MAP_HEIGHT * MAP_HEIGHT)));
 const int ASPECT = 10;
 const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
@@ -52,15 +52,23 @@ const float MAX_LANDING_AREA_BIG_SPEED_SCORE = 200.f;
 const float MAX_LANDING_AREA_NORMAL_SPEED_SCORE = 300.f;
 const float SPEED_PENALTY_WEIGHT = .1f;
 const float CROSSOVER_GENE_PROB = .5f;
+const float MAX_POSSIBLE_HSPEED = 50.f; // This is from observation it may not be correct
+const float MAX_POSSIBLE_VSPEED = 150.f; // This is from observation it may not be correct
+const float COMBINED_EVALUATION_WEIGHT = 100.f; // Just for bigger evalaluations, may be it is worng
 const float FLOAT_MAX_RAND = static_cast<float>(RAND_MAX);
 
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 100;
+const int POPULATION_SIZE = 2;
+const int MAX_POPULATION = 20;
 const int CHILDREN_COUNT = POPULATION_SIZE;
+const float ELITISM_RATIO = 0.05f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
+// Maybe research for PROBABILITY_OF_CROSSOVER
+// Maybe research for PROBABILITY_OF_MUTATION
+// ... but I think they are not needed for Continues Genetic Algotithm
+
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -1143,7 +1151,21 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 
 void Chromosome::evaluate(Surface* surface) {
 	float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
-	evaluation = dist;
+	float distPortion = 1.f - (dist / MAX_DISTANCE);
+
+	float angle = static_cast<float>(abs(shuttle.getRotate()));
+	float anglePortion = 1.f - (angle / MAX_ROTATION_ANGLE);
+
+	// The limit for the H speed must be considered somehow
+	float hSpeed = abs(shuttle.getHSpeed());
+	float hSpeedPortion = 1.f - (hSpeed / MAX_POSSIBLE_HSPEED);
+
+	// The limit for the H speed must be considered somehow
+	float vSpeed = abs(shuttle.getVSpeed());
+	float vSpeedPortion = 1.f - (vSpeed / MAX_POSSIBLE_VSPEED);
+
+	evaluation = distPortion + anglePortion + hSpeedPortion + vSpeedPortion;
+	evaluation *= COMBINED_EVALUATION_WEIGHT;
 }
 
 //*************************************************************************************************************
@@ -1313,8 +1335,6 @@ void GeneticPopulation::initRandomPopulation() {
 			Gene gene(randAngle, randPower);
 			population[chromIdx].addGene(gene);
 		}
-
-		// May be here simulate the genes from the chromosome to get the initial paths of the shuttle
 	}
 }
 
