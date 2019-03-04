@@ -65,7 +65,7 @@ const int POPULATION_SIZE = 100;
 const int MAX_POPULATION = 20;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.05f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
-const float PROBABILITY_OF_MUTATION = 0.5f; // The probability to mutate a gene
+const float PROBABILITY_OF_MUTATION = 0.1f; // The probability to mutate a gene
 // Maybe research for PROBABILITY_OF_CROSSOVER
 // ... but I think they are not needed for Continues Genetic Algotithm
 
