@@ -65,8 +65,8 @@ const int POPULATION_SIZE = 10;
 const int MAX_POPULATION = 20;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.05f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
+const float PROBABILITY_OF_MUTATION = 0.5f; // The probability to mutate a gene
 // Maybe research for PROBABILITY_OF_CROSSOVER
-// Maybe research for PROBABILITY_OF_MUTATION
 // ... but I think they are not needed for Continues Genetic Algotithm
 
 
@@ -1219,9 +1219,26 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 //*************************************************************************************************************
 
 void Chromosome::mutate() {
-	int randGeneIdx = rand() % chromosome.size();
-	chromosome[randGeneIdx].rotate = (rand() % (MAX_ROTATION_ANGLE * 2)) - MAX_ROTATION_ANGLE;
-	chromosome[randGeneIdx].power = (rand() % (MAX_POWER * 2)) - MAX_POWER;
+	for (Gene& gene : chromosome) {
+		const float r = Math::randomFloatBetween0and1();
+
+		if (r < PROBABILITY_OF_MUTATION) {
+			// Not sure if this is the best mutation
+			// Use the logic from the initRandomPopulation
+			// May the restrictions from the previous turn could be taken in account
+			const int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
+			const int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
+
+			int randAngle = rand() % maxAngleRand;
+			int randPower = rand() % maxPowerRand;
+
+			randAngle += MIN_ROTATION_ANGLE_STEP;
+			randPower += MIN_POWER_STEP;
+
+			gene.rotate = randAngle;
+			gene.power = randPower;
+		}
+	}
 }
 
 //*************************************************************************************************************
@@ -1276,6 +1293,10 @@ public:
 	/// @param[in] parent1Idx the second parent's index, which will be used for the crossover
 	/// @param[out] children the new population of chromosomes in which the new created children will be added
 	void crossover(int parent0Idx, int parent1Idx, Chromosomes& children);
+
+	/// Mutate the last two chromosomes in the children array, they are the new from the crossover
+	/// @param[in/out] children the new children created from the crossover
+	void mutate(Chromosomes& children);
 
 	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
 	/// @param[out] children the new generation children
@@ -1442,6 +1463,18 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& c
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+void GeneticPopulation::mutate(Chromosomes& children) {
+	const int childrenSize = static_cast<int>(children.size());
+	// Mutate last two chromosomes
+	for (int chromIdx = 0; chromIdx < 2; ++chromIdx) {
+		Chromosome& chrom = children[childrenSize - chromIdx - 1];
+		chrom.mutate();
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void GeneticPopulation::makeChildren(Chromosomes& children) {
 	// While the new population is not completly filled
 	// select a pair of parents
@@ -1455,46 +1488,9 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 
 		// Maybe here a check if a valid pair of parents indecies is selected
 		crossover(parent0Idx, parent1Idx, children);
+
+		mutate(children);
 	}
-
-
-
-	// Experimental crossover, just to see the result
-	// For the actual crossover good selection will be requried with some more R&D for all parameters that affect the solution
-	//for (int parentIdx = 0; parentIdx < CHILDREN_COUNT; parentIdx += 2) {
-	//	const Chromosome& parent0 = population[parentIdx];
-	//	const Chromosome& parent1 = population[parentIdx + 1];
-	//
-	//	Chromosome child0;
-	//	Chromosome child1;
-	//
-	//	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-	//		const float beta = Math::randomFloatBetween0and1();
-	//		const float parent0Rotate = static_cast<float>(parent0.getGene(geneIdx).rotate);
-	//		const float parent1Rotate = static_cast<float>(parent1.getGene(geneIdx).rotate);
-	//		const float parent0Power = static_cast<float>(parent0.getGene(geneIdx).power);
-	//		const float parent1Power = static_cast<float>(parent1.getGene(geneIdx).power);
-	//
-	//		float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
-	//		float child1Rotation = ((1.f - beta) * parent0Rotate) + (parent1Rotate);
-	//		float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
-	//		float child1Power = ((1.f - beta) * parent0Power) + (parent1Power);
-	//
-	//		Gene child0Gene;
-	//		child0Gene.rotate = static_cast<int>(round(child0Rotation));
-	//		child0Gene.power = static_cast<int>(round(child0Power));
-	//
-	//		Gene child1Gene;
-	//		child1Gene.rotate = static_cast<int>(round(child1Rotation));
-	//		child1Gene.power = static_cast<int>(round(child1Power));
-	//
-	//		child0.addGene(child0Gene);
-	//		child1.addGene(child1Gene);
-	//	}
-	//
-	//	children.push_back(child0);
-	//	children.push_back(child1);
-	//}
 }
 
 //*************************************************************************************************************
