@@ -1263,36 +1263,10 @@ public:
 	/// The actual angles which should be outputted at the end are stores in each Chromosome's shuttle (rotate and power memebers)
 	void initRandomPopulation();
 	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
-	void arrangeChromosomesByEvaluation();
-	void selectParentsForChild(
-		const Chromosome** parent0,
-		const Chromosome** parent1
-	) const;
 	void makeChildren(Chromosomes& children);
-
-	void crossover(
-		const Chromosome& parent0,
-		const Chromosome& parent1,
-		Chromosome& child0,
-		Chromosome& child
-	);
 
 	void resetChildFlags();
 	void makeNextGeneration();
-	int selectParent(float randomFloat) const;
-	void reset();
-	void crossoverGenes(
-		const Gene& parent0Gene,
-		const Gene& parent1Gene,
-		Gene& childGene
-	) const;
-
-	void mutateGene(
-		float parent0OriginalEvaluation,
-		float parent1OriginalEvaluation,
-		int geneIdx,
-		Gene& gene
-	) const;
 
 	string constructSVGData(const SVGManager& svgManager) const;
 
@@ -1372,128 +1346,14 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::arrangeChromosomesByEvaluation() {
-	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
-		Chromosome& chromosome = population[chromIdx];
-		const float& originalEvaluation = chromosome.getEvaluation();
-		chromosome.setOriginalEvaluation(originalEvaluation);
-		float normEvaluation = originalEvaluation / evaluationsSum;
-		chromosome.setEvaluation(normEvaluation);
-	}
-
-	sort(population.rbegin(), population.rend());
-
-	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
-		Chromosome& chromosome = population[chromIdx];
-		if (chromIdx > 0) {
-			float prevEvaluation = population[chromIdx - 1].getEvaluation();
-			chromosome.setEvaluation(prevEvaluation + chromosome.getEvaluation());
-		}
-	}
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-int GeneticPopulation::selectParent(float randomFloat) const {
-	int parentChromIdx = static_cast<int>(population.size() - 1);
-
-	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
-		if (randomFloat < population[chromIdx].getEvaluation()) {
-			parentChromIdx = static_cast<int>(chromIdx);
-			break;
-		}
-	}
-
-	return parentChromIdx;
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void GeneticPopulation::reset() {
-	evaluationsSum = 0.f;
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void GeneticPopulation::crossoverGenes(
-	const Gene& parent0Gene,
-	const Gene& parent1Gene,
-	Gene& childGene
-) const {
-	float randomfloat = Math::randomFloatBetween0and1();
-	childGene.rotate =
-		parent0Gene.rotate +
-		static_cast<int>(randomfloat * (parent1Gene.rotate - parent0Gene.rotate));
-
-	randomfloat = Math::randomFloatBetween0and1();
-	childGene.power =
-		parent0Gene.power +
-		static_cast<int>(randomfloat * (parent1Gene.power - parent0Gene.power));
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void GeneticPopulation::mutateGene(
-	float parent0OriginalEvaluation,
-	float parent1OriginalEvaluation,
-	int geneIdx,
-	Gene& gene
-) const {
-	int mudblood = 5;
-	const float maxScore = max(parent0OriginalEvaluation, parent1OriginalEvaluation);
-
-	if (MAX_OUT_OF_LANDING_AREA_SCORE < maxScore) {
-		mudblood = 3;
-	}
-
-	if (MAX_LANDING_AREA_BIG_SPEED_SCORE < maxScore) {
-		mudblood = 1;
-	}
-
-	const float progress = (static_cast<float>(geneIdx)) / CHROMOSOME_SIZE;
-	const float progressChance = .4f + 1.f * progress;
-	const float mutationChance = .02f * mudblood * progressChance;
-
-	const float randomFloat = Math::randomFloatBetween0and1();
-	if (randomFloat < mutationChance) {
-		gene.rotate += (rand() % 21) - 10;
-		gene.power += (rand() % 2) - 1;
-	}
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void GeneticPopulation::selectParentsForChild(
-	const Chromosome** parent0,
-	const Chromosome** parent1
-) const {
-	float randomFloat = Math::randomFloatBetween0and1();
-
-	const int parent0Idx = selectParent(randomFloat);
-
-	randomFloat = Math::randomFloatBetween0and1();
-	int parent1Idx = selectParent(randomFloat);
-
-	*parent0 = &population[parent0Idx];
-	*parent1 = &population[parent1Idx];
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
 void GeneticPopulation::makeChildren(Chromosomes& children) {
 	// While the new population is not completly filled
 	// select a pair of parents
 	// crossover those parents using the Continuos Genetic Algorithm technique
 	// mutate them using the Continuos Genetic Algorithm technique
-	while (children.size() < CHILDREN_COUNT) {
-
-	}
+	//while (children.size() < CHILDREN_COUNT) {
+	//
+	//}
 
 
 
@@ -1532,50 +1392,6 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 
 		children.push_back(child0);
 		children.push_back(child1);
-	}
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void GeneticPopulation::crossover(
-	const Chromosome& parent0,
-	const Chromosome& parent1,
-	Chromosome& child0,
-	Chromosome& child1
-) {
-	const float& parent0OriginalEvaluation = parent0.getOriginalEvaluation();
-	const float& parent1OriginalEvaluation = parent1.getOriginalEvaluation();
-
-	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-		Gene& parent0Gene = parent0.getGene(geneIdx);
-		Gene& parent1Gene = parent1.getGene(geneIdx);
-
-		//Gene childGene;
-		//crossoverGenes(parent0Gene, parent1Gene, childGene);
-		//mutateGene(parent0OriginalEvaluation, parent1OriginalEvaluation, geneIdx, childGene);
-		//child0.addGene(childGene);
-		//
-		//crossoverGenes(parent0Gene, parent1Gene, childGene);
-		//mutateGene(parent0OriginalEvaluation, parent1OriginalEvaluation, geneIdx, childGene);
-		//child1.addGene(childGene);
-
-
-		mutateGene(parent0OriginalEvaluation, parent1OriginalEvaluation, geneIdx, parent0Gene);
-		mutateGene(parent0OriginalEvaluation, parent1OriginalEvaluation, geneIdx, parent1Gene);
-
-		parent0Gene.clamp();
-		parent1Gene.clamp();
-
-		float randomfloat = Math::randomFloatBetween0and1();
-		if (randomfloat >= CROSSOVER_GENE_PROB) {
-			child0.addGene(parent0Gene);
-			child1.addGene(parent1Gene);
-		}
-		else {
-			child0.addGene(parent1Gene);
-			child1.addGene(parent0Gene);
-		}
 	}
 }
 
@@ -1813,9 +1629,7 @@ void Game::turnBegin() {
 
 	int populationId = 0;
 	while (!answerFound) {
-		geneticPopulation.reset();
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromosome);
-		geneticPopulation.arrangeChromosomesByEvaluation();
 
 #ifdef SVG
 		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
