@@ -1266,6 +1266,11 @@ public:
 	/// The actual angles which should be outputted at the end are stores in each Chromosome's shuttle (rotate and power memebers)
 	void initRandomPopulation();
 
+	/// Select parents' indecies, for crossover, using the roullete wheel technique
+	/// @param[out] parent0Idx the first parent's index, which will be used for the crossover
+	/// @param[out] parent1Idx the second parent's index, which will be used for the crossover
+	void selectParentsIdxs(int& parent0Idx, int& parent1Idx);
+
 	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
 	/// @param[out] children the new generation children
 	void makeChildren(Chromosomes& children);
@@ -1363,14 +1368,45 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
+	float r = Math::randomFloatBetween0and1();
+
+	for (int chromIdx = 1; chromIdx < static_cast<int>(population.size()); ++chromIdx) {
+		if (r > population[chromIdx].getEvaluation()) {
+			parent0Idx = chromIdx - 1;
+			break;
+		}
+	}
+
+	parent1Idx = parent0Idx;
+
+	while (parent1Idx == parent0Idx) {
+		r = Math::randomFloatBetween0and1();
+
+		// Code duplication, at the moment I cannot think of more elegant layout
+		for (int chromIdx = 1; chromIdx < static_cast<int>(population.size()); ++chromIdx) {
+			if (r > population[chromIdx].getEvaluation()) {
+				parent1Idx = chromIdx - 1;
+				break;
+			}
+		}
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void GeneticPopulation::makeChildren(Chromosomes& children) {
 	// While the new population is not completly filled
 	// select a pair of parents
 	// crossover those parents using the Continuos Genetic Algorithm technique
 	// mutate them using the Continuos Genetic Algorithm technique
-	//while (children.size() < CHILDREN_COUNT) {
-	//	
-	//}
+	while (children.size() < CHILDREN_COUNT) {
+		int parent0Idx = INVALID_ID; // For safety reasons
+		int parent1Idx = INVALID_ID; // For safety reasons
+
+		selectParentsIdxs(parent0Idx, parent1Idx);
+	}
 
 
 
