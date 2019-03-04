@@ -61,7 +61,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 10;
+const int POPULATION_SIZE = 100;
 const int MAX_POPULATION = 20;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.05f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
@@ -986,10 +986,6 @@ public:
 		return path;
 	}
 
-	bool getIsChild() const {
-		return isChild;
-	}
-
 	Coords getCollisionPoint() const {
 		return collisionPoint;
 	}
@@ -1003,7 +999,6 @@ public:
 	void setOriginalEvaluation(float originalEvaluation) { this->originalEvaluation = originalEvaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 	void setPath(const Path& path) { this->path = path; }
-	void setIsChild(bool isChild) { this->isChild = isChild; }
 	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
 	void setCrashLineIdx(bool crashLineIdx) { this->crashLineIdx = crashLineIdx; }
 
@@ -1023,7 +1018,6 @@ private:
 	Shuttle shuttle;
 	float evaluation; /// Maybe I could work with integer evaluation !? experiment
 	float originalEvaluation;
-	bool isChild;
 	Coords collisionPoint; /// Calculations for the crash point may slitly vary from the platform
 	int crashLineIdx;
 
@@ -1041,7 +1035,6 @@ Chromosome::Chromosome() :
 	originalEvaluation(0.f),
 	chromosome(),
 	path(),
-	isChild(false),
 	collisionPoint(),
 	crashLineIdx(INVALID_ID),
 	outputCommands()
@@ -1076,7 +1069,6 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 		evaluation = other.evaluation;
 		chromosome = other.chromosome;
 		path = other.path;
-		isChild = other.isChild;
 	}
 	return *this;
 }
@@ -1126,9 +1118,6 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append(FILL_NONE);
 
 	string strokeRGB = svgManager.constructStrokeForRGB(255, int(255.f * evaluation), int(255.f * evaluation));
-	if (isChild) {
-		strokeRGB = svgManager.constructStrokeForRGB(0, 255, 0);
-	}
 	svgStr.append(strokeRGB);
 	svgStr.append(";");
 
@@ -1268,13 +1257,8 @@ public:
 		return surface;
 	}
 
-	float getEvaluationsSum() const {
-		return evaluationsSum;
-	}
-
 	void setSurface(const Surface& surface) { this->surface = surface; }
 	void setChromosomes(const Chromosomes& population) { this->population = population; }
-	void setEvaluationsSum(float evaluationsSum) { this->evaluationsSum = evaluationsSum; }
 
 	/// Use the Continuos Genetic Algorithm methods to make the new generation TODO: maybe not needed
 	void makeNextGeneration();
@@ -1298,6 +1282,11 @@ public:
 	/// @param[in/out] children the new children created from the crossover
 	void mutate(Chromosomes& children);
 
+	/// Get the best chromosomes from the current population and pass them unchanged to the next
+	/// @param[in] population the current population
+	/// @param[out] the new generation
+	void elitsm(const Chromosomes& population, Chromosomes& children);
+
 	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
 	/// @param[out] children the new generation children
 	void makeChildren(Chromosomes& children);
@@ -1306,9 +1295,6 @@ public:
 	/// @param[in] shuttle the shuttle, for which the simulation is done TODO: do not use pointer
 	/// @param[out] solutionChromosome the Chromosome, which holds the genes for the solution, if any
 	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
-
-	/// ...!?
-	void resetChildFlags();
 
 	/// Prepare the population for the roullete wheel selection:
 	///		- calc the sum of evaluations
@@ -1322,7 +1308,6 @@ public:
 private:
 	Chromosomes population;
 	Surface surface;
-	float evaluationsSum;
 };
 
 //*************************************************************************************************************
@@ -1330,8 +1315,7 @@ private:
 
 GeneticPopulation::GeneticPopulation() :
 	population(POPULATION_SIZE),
-	surface(),
-	evaluationsSum(0.f)
+	surface()
 {
 }
 
@@ -1370,23 +1354,16 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 	bool foundResChromosome = false;
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
-		Chromosome* chromosome = &population[chromIdx];
-		bool chromosomePosAlredyCalced = chromosome->getShuttle().getPosition().isValid();
-
-		if (!chromosome->getIsChild() && chromosomePosAlredyCalced) {
-			continue;
-		}
-
-		chromosome->setShuttle(*shuttle);
-		chromosome->simulate(&surface, foundResChromosome);
+		Chromosome& chromosome = population[chromIdx];
+		chromosome.setShuttle(*shuttle);
+		chromosome.simulate(&surface, foundResChromosome);
 
 		if (foundResChromosome) {
-			solutionChromosome = *chromosome;
+			solutionChromosome = chromosome;
 			break;
 		}
 
-		chromosome->evaluate(&surface);
-		evaluationsSum += chromosome->getEvaluation();
+		chromosome.evaluate(&surface);
 	}
 
 	return foundResChromosome;
@@ -1475,6 +1452,18 @@ void GeneticPopulation::mutate(Chromosomes& children) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+void GeneticPopulation::elitsm(const Chromosomes& population, Chromosomes& children) {
+	const int elitsCount = static_cast<int>(round(static_cast<float>(population.size()) * ELITISM_RATIO));
+
+	// Chromosomes are sorted in descending order so the best elits are in the begining of the population
+	for (int elitIdx = 0; elitIdx < elitsCount; ++elitIdx) {
+		children[elitIdx] = population[elitIdx];
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void GeneticPopulation::makeChildren(Chromosomes& children) {
 	// While the new population is not completly filled
 	// select a pair of parents
@@ -1496,15 +1485,6 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::resetChildFlags() {
-	for (size_t chromeIdx = 0; chromeIdx < population.size(); ++chromeIdx) {
-		population[chromeIdx].setIsChild(false);
-	}
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
 void GeneticPopulation::makeNextGeneration() {
 	prepareForRoulleteWheel();
 
@@ -1512,6 +1492,7 @@ void GeneticPopulation::makeNextGeneration() {
 	makeChildren(children);
 
 	// Apply elitism, get the best chromosomes from the population and overwrite some children
+	elitsm(population, children);
 
 	population.clear();
 	population = children;
