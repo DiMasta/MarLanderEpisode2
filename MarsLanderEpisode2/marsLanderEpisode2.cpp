@@ -61,7 +61,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 2;
+const int POPULATION_SIZE = 10;
 const int MAX_POPULATION = 20;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.05f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
@@ -1021,7 +1021,7 @@ public:
 
 private:
 	Shuttle shuttle;
-	float evaluation;
+	float evaluation; /// Maybe I could work with integer evaluation !? experiment
 	float originalEvaluation;
 	bool isChild;
 	Coords collisionPoint; /// Calculations for the crash point may slitly vary from the platform
@@ -1259,14 +1259,31 @@ public:
 	void setChromosomes(const Chromosomes& population) { this->population = population; }
 	void setEvaluationsSum(float evaluationsSum) { this->evaluationsSum = evaluationsSum; }
 
+	/// Use the Continuos Genetic Algorithm methods to make the new generation TODO: maybe not needed
+	void makeNextGeneration();
+
 	/// Fill with chromosomes which are containing random changes in power [-1, 1] and angle [-15, 15]
 	/// The actual angles which should be outputted at the end are stores in each Chromosome's shuttle (rotate and power memebers)
 	void initRandomPopulation();
-	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
+
+	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
+	/// @param[out] children the new generation children
 	void makeChildren(Chromosomes& children);
 
+	/// Simulate all Chromosomes, using the commands from each gene to move the given shuttle
+	/// @param[in] shuttle the shuttle, for which the simulation is done TODO: do not use pointer
+	/// @param[out] solutionChromosome the Chromosome, which holds the genes for the solution, if any
+	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
+
+	/// ...!?
 	void resetChildFlags();
-	void makeNextGeneration();
+
+	/// Prepare the population for the roullete wheel selection:
+	///		- calc the sum of evaluations
+	///		- normalize the evalutions
+	///		- sort the population's chromosome based on the cumulative sum
+	///		- calc the cumulative sum
+	void prepareForRoulleteWheel();
 
 	string constructSVGData(const SVGManager& svgManager) const;
 
@@ -1352,7 +1369,7 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 	// crossover those parents using the Continuos Genetic Algorithm technique
 	// mutate them using the Continuos Genetic Algorithm technique
 	//while (children.size() < CHILDREN_COUNT) {
-	//
+	//	
 	//}
 
 
@@ -1408,6 +1425,8 @@ void GeneticPopulation::resetChildFlags() {
 //*************************************************************************************************************
 
 void GeneticPopulation::makeNextGeneration() {
+	prepareForRoulleteWheel();
+
 	Chromosomes children;
 	makeChildren(children);
 
@@ -1415,6 +1434,34 @@ void GeneticPopulation::makeNextGeneration() {
 
 	population.clear();
 	population = children;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::prepareForRoulleteWheel() {
+	// sum of evaluations
+	float sum = 0.f;
+	for (const Chromosome& chrom : population) {
+		sum += chrom.getEvaluation();
+	}
+
+	// normalize the evalutions
+	for (Chromosome& chrom : population) {
+		chrom.setEvaluation(chrom.getEvaluation() / sum);
+	}
+
+	// sort the population's chromosome based on the cumulative sum
+	sort(population.rbegin(), population.rend());
+
+	// calc the cumulative sum
+	// TODO: first chromosome cumulative evalution could be written 1, left it to make check
+	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
+		for (size_t nextChromIdx = chromIdx + 1; nextChromIdx < population.size(); ++nextChromIdx) {
+			Chromosome& currentChrom = population[chromIdx];
+			currentChrom.setEvaluation(currentChrom.getEvaluation() + population[nextChromIdx].getEvaluation());
+		}
+	}
 }
 
 //*************************************************************************************************************
