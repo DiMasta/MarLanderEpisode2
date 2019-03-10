@@ -18,7 +18,7 @@
 #define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
+#define SIMULATION_OUTPUT
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -62,7 +62,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 20;
+const int MAX_POPULATION = 100;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.05f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.1f; // The probability to mutate a gene
@@ -793,10 +793,6 @@ void Shuttle::applyNewPower(int newPowerStep) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-#ifdef SIMULATION_OUTPUT
-int turn = 1;
-#endif // SIMULATION_OUTPUT
-
 void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	applyNewRotateAngle(rotateAngle);
 	applyNewPower(thrustPower);
@@ -1063,11 +1059,13 @@ bool Chromosome::operator<(const Chromosome& chromosome) const {
 Chromosome& Chromosome::operator=(const Chromosome& other) {
 	if (this != &other) {
 		chromosome.clear();
+		outputCommands.clear();
 		path.clear();
 
 		shuttle = other.shuttle;
 		evaluation = other.evaluation;
 		chromosome = other.chromosome;
+		outputCommands = other.outputCommands;
 		path = other.path;
 	}
 	return *this;
@@ -1417,9 +1415,9 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& c
 		const float parent1Power = static_cast<float>(parent1.getGene(geneIdx).power);
 
 		float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
-		float child1Rotation = ((1.f - beta) * parent0Rotate) + (parent1Rotate);
+		float child1Rotation = ((1.f - beta) * parent0Rotate) + (beta * parent1Rotate);
 		float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
-		float child1Power = ((1.f - beta) * parent0Power) + (parent1Power);
+		float child1Power = ((1.f - beta) * parent0Power) + (beta * parent1Power);
 
 		Gene child0Gene;
 		child0Gene.rotate = static_cast<int>(round(child0Rotation));
@@ -1534,8 +1532,11 @@ string GeneticPopulation::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = "";
 
 	for (size_t chromeIdx = 0; chromeIdx < population.size(); ++chromeIdx) {
-		string chromeSVGData = population[chromeIdx].constructSVGData(svgManager);
-		svgStr.append(chromeSVGData);
+		const Chromosome& chromosome = population[chromeIdx];
+		if (chromosome.getShuttle().getPosition().isValid()) {
+			string chromeSVGData = chromosome.constructSVGData(svgManager);
+			svgStr.append(chromeSVGData);
+		}
 	}
 
 	return svgStr;
@@ -1753,18 +1754,20 @@ void Game::turnBegin() {
 #endif // SVG
 
 #ifdef SIMULATION_OUTPUT
-		// Commands to directly debug on the online platform
-		const Genes& genes = geneticPopulation.getPopulation()[0].getOutputCommands();
-		for (size_t geneIdx = 0; geneIdx < genes.size(); ++geneIdx) {
-			cout << genes[geneIdx].rotate << ", " << genes[geneIdx].power << "," << endl;
+		if (answerFound) {
+			// Commands to directly debug on the online platform
+			const Genes& genes = solutionChromosome.getOutputCommands();
+			for (size_t geneIdx = 0; geneIdx < genes.size(); ++geneIdx) {
+				cout << genes[geneIdx].rotate << ", " << genes[geneIdx].power << "," << endl;
+			}
 		}
 #endif // SIMULATION_OUTPUT
-
-		geneticPopulation.makeNextGeneration();
 
 		if (populationId == MAX_POPULATION) {
 			break;
 		}
+
+		geneticPopulation.makeNextGeneration();
 	}
 }
 
