@@ -56,16 +56,17 @@ const float MAX_POSSIBLE_HSPEED = 50.f; // This is from observation it may not b
 const float MAX_POSSIBLE_VSPEED = 150.f; // This is from observation it may not be correct
 const float COMBINED_EVALUATION_WEIGHT = 100.f; // Just for bigger evalaluations, may be it is worng
 const float FLOAT_MAX_RAND = static_cast<float>(RAND_MAX);
+const float DIST_WEIGHT = 4.f;
 
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 100;
+const int MAX_POPULATION = 1000;
 const int CHILDREN_COUNT = POPULATION_SIZE;
-const float ELITISM_RATIO = 0.05f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
-const float PROBABILITY_OF_MUTATION = 0.1f; // The probability to mutate a gene
+const float ELITISM_RATIO = 0.01f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
+const float PROBABILITY_OF_MUTATION = 0.6f; // The probability to mutate a gene
 // Maybe research for PROBABILITY_OF_CROSSOVER
 // ... but I think they are not needed for Continues Genetic Algotithm
 
@@ -840,11 +841,14 @@ bool Shuttle::goodForLanding(const Line& landingZone) const {
 	Coord landingZoneX1 = landingZone.getPoint1().getXCoord();
 	Coord landingZoneY = landingZone.getPoint0().getYCoord();
 
+	int hSpeedRounded = abs(static_cast<int>(round(hSpeed)));
+	int vSpeedRounded = abs(static_cast<int>(round(vSpeed)));
+
 	if (shuttleX > landingZoneX0 && shuttleX < landingZoneX1) {
 		Coord distToLandingZone = shuttleY - landingZoneY;
 		if (distToLandingZone < SAVE_DISTANCE_TO_LANDING_ZONE) {
 			if (rotate >= MIN_ROTATION_ANGLE_STEP && rotate <= MAX_ROTATION_ANGLE_STEP) {
-				if (hSpeed <= MAX_H_SPEED_FOR_LANDING && vSpeed <= MAX_V_SPEED_FOR_LANDING) {
+				if ((hSpeedRounded <= MAX_H_SPEED_FOR_LANDING) && (vSpeedRounded <= MAX_V_SPEED_FOR_LANDING)) {
 					res = true;
 				}
 			}
@@ -1139,6 +1143,7 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 void Chromosome::evaluate(Surface* surface) {
 	float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
 	float distPortion = 1.f - (dist / MAX_DISTANCE);
+	distPortion *= DIST_WEIGHT;
 
 	float angle = static_cast<float>(abs(shuttle.getRotate()));
 	float anglePortion = 1.f - (angle / MAX_ROTATION_ANGLE);
