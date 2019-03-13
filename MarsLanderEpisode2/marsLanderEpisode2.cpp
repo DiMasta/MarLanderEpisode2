@@ -63,13 +63,11 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 1000;
+const int MAX_POPULATION = 100;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.01f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.6f; // The probability to mutate a gene
-// Maybe research for PROBABILITY_OF_CROSSOVER
-// ... but I think they are not needed for Continues Genetic Algotithm
-
+const float PROBABILITY_OF_CROSSOVER = 0.7f; // The probability to use the new child or transfer the parent directly
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -1141,6 +1139,44 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 
 void Chromosome::evaluate(Surface* surface) {
+	/*
+	var currentSpeed = Math.sqrt(Math.pow(this.xspeed, 2) + Math.pow(this.yspeed, 2));
+
+	// 0-100: crashed somewhere, calculate score by distance to landing area
+	if (!hitLandingArea) {
+
+		var lastX = this.points[this.points.length-2][0];
+		var lastY = this.points[this.points.length-2][1];
+		var distance = level.getDistanceToLandingArea(lastX, lastY);
+
+		// Calculate score from distance
+		this.score = 100 - (100 * distance / level.max_dist);
+
+		// High speeds are bad, they decrease maneuvrability
+		var speedPen = 0.1 * Math.max(currentSpeed - 100, 0);
+		this.score -= speedPen;
+	}
+
+	// 100-200: crashed into landing area, calculate score by speed above safety
+	else if (this.yspeed < -40 || 20 < Math.abs(this.xspeed)) {
+		var xPen = 0;
+		if (20 < Math.abs(this.xspeed)) {
+			xPen = (Math.abs(this.xspeed) - 20) / 2
+		}
+		var yPen = 0
+			if (this.yspeed < -40) {
+				yPen = (-40 - this.yspeed) / 2
+			}
+		this.score = 200 - xPen - yPen
+			return;
+	}
+
+	// 200-300: landed safely, calculate score by fuel remaining
+	else {
+		this.score = 200 + (100 * this.fuel / this.initFuel)
+	}
+	*/
+
 	float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
 	float distPortion = 1.f - (dist / MAX_DISTANCE);
 	distPortion *= DIST_WEIGHT;
@@ -1159,7 +1195,7 @@ void Chromosome::evaluate(Surface* surface) {
 	// After these are polished, add evaluation for the fuel
 
 	evaluation = distPortion + anglePortion + hSpeedPortion + vSpeedPortion;
-	evaluation *= COMBINED_EVALUATION_WEIGHT;
+	//evaluation *= COMBINED_EVALUATION_WEIGHT;
 }
 
 //*************************************************************************************************************
@@ -1436,8 +1472,21 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& c
 		child1.addGene(child1Gene);
 	}
 
-	children.push_back(child0);
-	children.push_back(child1);
+	float r = Math::randomFloatBetween0and1();
+	if (r <= PROBABILITY_OF_CROSSOVER) {
+		children.push_back(child0);
+	}
+	else {
+		children.push_back(parent0);
+	}
+
+	r = Math::randomFloatBetween0and1();
+	if (r <= PROBABILITY_OF_CROSSOVER) {
+		children.push_back(child1);
+	}
+	else {
+		children.push_back(parent1);
+	}
 }
 
 //*************************************************************************************************************
