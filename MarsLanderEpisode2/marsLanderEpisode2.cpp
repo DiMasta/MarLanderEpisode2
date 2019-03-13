@@ -62,7 +62,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 100;
+const int POPULATION_SIZE = 4;
 const int MAX_POPULATION = 100;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.01f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
@@ -100,9 +100,17 @@ enum LandingZoneDirection {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+random_device rd;
+mt19937 mt(rd());
+uniform_real_distribution<float> dist(0.0, 1.0);
+
 namespace Math {
 	float randomFloatBetween0and1() {
 		return static_cast<float>(rand()) / FLOAT_MAX_RAND;
+	}
+
+	float _randomFloatBetween0and1() {
+		return dist(mt);
 	}
 };
 
@@ -989,10 +997,6 @@ public:
 		return evaluation;
 	}
 
-	float getOriginalEvaluation() const {
-		return originalEvaluation;
-	}
-
 	Genes getChromosome() const {
 		return chromosome;
 	}
@@ -1015,7 +1019,6 @@ public:
 
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
-	void setOriginalEvaluation(float originalEvaluation) { this->originalEvaluation = originalEvaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 	void setPath(const Path& path) { this->path = path; }
 	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
@@ -1036,7 +1039,6 @@ public:
 private:
 	Shuttle shuttle;
 	float evaluation; /// Maybe I could work with integer evaluation !? experiment
-	float originalEvaluation;
 	Coords collisionPoint; /// Calculations for the crash point may slitly vary from the platform
 	int crashLineIdx;
 
@@ -1051,7 +1053,6 @@ private:
 Chromosome::Chromosome() :
 	shuttle(),
 	evaluation(0.f),
-	originalEvaluation(0.f),
 	chromosome(),
 	path(),
 	collisionPoint(),
@@ -1087,6 +1088,8 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 
 		shuttle = other.shuttle;
 		evaluation = other.evaluation;
+		collisionPoint = other.collisionPoint;
+		crashLineIdx = other.crashLineIdx;
 		chromosome = other.chromosome;
 		outputCommands = other.outputCommands;
 		path = other.path;
