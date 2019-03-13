@@ -440,6 +440,10 @@ public:
 
 	float findDistanceToLandingZone(const Coords& from, int crashLineIdx) const;
 
+	/// Check if the shuutle has crashed on landing area
+	/// @paramp[in] collisionPoint point where the shuttle crashed
+	bool crashedOnLandingArea(const Coords& collisionPoint) const;
+
 	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
@@ -540,6 +544,23 @@ void Surface::addLine(
 	}
 
 	lines.push_back(line);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Surface::crashedOnLandingArea(const Coords& collisionPoint) const {
+	const Coord x = collisionPoint.getXCoord();
+	const Coord y = collisionPoint.getYCoord();
+
+	const Coord landingLeftX = landingZone.getPoint0().getXCoord();
+	const Coord landingRightX = landingZone.getPoint1().getXCoord();
+	const Coord landingY = landingZone.getPoint1().getYCoord();
+
+	const bool inLandingXZone = (landingLeftX <= x) && (x <= landingRightX);
+	const bool inLandingYZone = (landingY - 25.f <= y) && (y <= landingY + 25.f);
+
+	return inLandingXZone && inLandingYZone;
 }
 
 //*************************************************************************************************************
@@ -1139,63 +1160,89 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 
 void Chromosome::evaluate(Surface* surface) {
-	/*
-	var currentSpeed = Math.sqrt(Math.pow(this.xspeed, 2) + Math.pow(this.yspeed, 2));
+	//var currentSpeed = Math.sqrt(Math.pow(this.xspeed, 2) + Math.pow(this.yspeed, 2));
+	const float hSpeed = shuttle.getHSpeed();
+	const float vSpeed = shuttle.getVSpeed();
+	const float currentSpeed = sqrt((hSpeed * hSpeed) + (vSpeed * vSpeed));
 
 	// 0-100: crashed somewhere, calculate score by distance to landing area
-	if (!hitLandingArea) {
-
-		var lastX = this.points[this.points.length-2][0];
-		var lastY = this.points[this.points.length-2][1];
-		var distance = level.getDistanceToLandingArea(lastX, lastY);
+	//if (!hitLandingArea) {
+	//
+	//	var lastX = this.points[this.points.length-2][0];
+	//	var lastY = this.points[this.points.length-2][1];
+	//	var distance = level.getDistanceToLandingArea(lastX, lastY);
+	//
+	//	// Calculate score from distance
+	//	this.score = 100 - (100 * distance / level.max_dist);
+	//
+	//	// High speeds are bad, they decrease maneuvrability
+	//	var speedPen = 0.1 * Math.max(currentSpeed - 100, 0);
+	//	this.score -= speedPen;
+	//}
+	if (!surface->crashedOnLandingArea(collisionPoint)) {
+		const float distance = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
 
 		// Calculate score from distance
-		this.score = 100 - (100 * distance / level.max_dist);
+		evaluation = 100 - (100 * distance / MAX_DISTANCE);
 
 		// High speeds are bad, they decrease maneuvrability
-		var speedPen = 0.1 * Math.max(currentSpeed - 100, 0);
-		this.score -= speedPen;
+		const float speedPen = 0.1f * max(currentSpeed - 100.f, 0.f);
+		evaluation -= speedPen;
 	}
-
-	// 100-200: crashed into landing area, calculate score by speed above safety
-	else if (this.yspeed < -40 || 20 < Math.abs(this.xspeed)) {
-		var xPen = 0;
-		if (20 < Math.abs(this.xspeed)) {
-			xPen = (Math.abs(this.xspeed) - 20) / 2
+	else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed)) {
+	//// 100-200: crashed into landing area, calculate score by speed above safety
+	//else if (this.yspeed < -40 || 20 < Math.abs(this.xspeed)) {
+	//	var xPen = 0;
+	//	if (20 < Math.abs(this.xspeed)) {
+	//		xPen = (Math.abs(this.xspeed) - 20) / 2
+	//	}
+	//	var yPen = 0
+	//		if (this.yspeed < -40) {
+	//			yPen = (-40 - this.yspeed) / 2
+	//		}
+	//	this.score = 200 - xPen - yPen
+	//		return;
+	//}
+		float xPen = 0.f;
+		if (MAX_H_ABS_SPEED < abs(hSpeed)) {
+			xPen = (abs(hSpeed) - MAX_V_ABS_SPEED) / 2.f;
 		}
-		var yPen = 0
-			if (this.yspeed < -40) {
-				yPen = (-40 - this.yspeed) / 2
-			}
-		this.score = 200 - xPen - yPen
-			return;
-	}
 
-	// 200-300: landed safely, calculate score by fuel remaining
+		float yPen = 0.f;
+		if (MAX_V_ABS_SPEED < abs(vSpeed)) {
+			yPen = (-MAX_V_ABS_SPEED - vSpeed) / 2.f;
+		}
+
+		evaluation = 200.f - xPen - yPen;
+	}
 	else {
-		this.score = 200 + (100 * this.fuel / this.initFuel)
+		//// 200-300: landed safely, calculate score by fuel remaining
+		//else {
+		//	this.score = 200 + (100 * this.fuel / this.initFuel)
+		//}
+
+		evaluation = 200.f + (100.f * shuttle.getFuel() / shuttle.getInitialFuel());
 	}
-	*/
 
-	float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
-	float distPortion = 1.f - (dist / MAX_DISTANCE);
-	distPortion *= DIST_WEIGHT;
-
-	float angle = static_cast<float>(abs(shuttle.getRotate()));
-	float anglePortion = 1.f - (angle / MAX_ROTATION_ANGLE);
-
-	// The limit for the H speed must be considered somehow
-	float hSpeed = abs(shuttle.getHSpeed());
-	float hSpeedPortion = 1.f - (hSpeed / MAX_POSSIBLE_HSPEED);
-
-	// The limit for the H speed must be considered somehow
-	float vSpeed = abs(shuttle.getVSpeed());
-	float vSpeedPortion = 1.f - (vSpeed / MAX_POSSIBLE_VSPEED);
-
-	// After these are polished, add evaluation for the fuel
-
-	evaluation = distPortion + anglePortion + hSpeedPortion + vSpeedPortion;
-	//evaluation *= COMBINED_EVALUATION_WEIGHT;
+	//float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
+	//float distPortion = 1.f - (dist / MAX_DISTANCE);
+	//distPortion *= DIST_WEIGHT;
+	//
+	//float angle = static_cast<float>(abs(shuttle.getRotate()));
+	//float anglePortion = 1.f - (angle / MAX_ROTATION_ANGLE);
+	//
+	//// The limit for the H speed must be considered somehow
+	//float hSpeed = abs(shuttle.getHSpeed());
+	//float hSpeedPortion = 1.f - (hSpeed / MAX_POSSIBLE_HSPEED);
+	//
+	//// The limit for the H speed must be considered somehow
+	//float vSpeed = abs(shuttle.getVSpeed());
+	//float vSpeedPortion = 1.f - (vSpeed / MAX_POSSIBLE_VSPEED);
+	//
+	//// After these are polished, add evaluation for the fuel
+	//
+	//evaluation = distPortion + anglePortion + hSpeedPortion + vSpeedPortion;
+	////evaluation *= COMBINED_EVALUATION_WEIGHT;
 }
 
 //*************************************************************************************************************
@@ -1395,6 +1442,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		Chromosome& chromosome = population[chromIdx];
 
+		// TODO: Better way to check for parent
 		if (chromosome.getCollisionPoint().isValid()) {
 			// Directly transfered parent
 			chromosome.evaluate(&surface); // Reset evaluation, because it was modified to fit the roullete wheel
