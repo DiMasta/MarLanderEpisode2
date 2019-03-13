@@ -1394,6 +1394,13 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
 		Chromosome& chromosome = population[chromIdx];
+
+		if (chromosome.getCollisionPoint().isValid()) {
+			// Directly transfered parent
+			chromosome.evaluate(&surface); // Reset evaluation, because it was modified to fit the roullete wheel
+			continue;
+		}
+
 		chromosome.setShuttle(*shuttle);
 		chromosome.simulate(&surface, foundResChromosome);
 
