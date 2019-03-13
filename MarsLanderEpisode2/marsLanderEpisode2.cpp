@@ -62,12 +62,12 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 4;
-const int MAX_POPULATION = 100;
+const int POPULATION_SIZE = 100;
+const int MAX_POPULATION = 150;
 const int CHILDREN_COUNT = POPULATION_SIZE;
-const float ELITISM_RATIO = 0.01f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
-const float PROBABILITY_OF_MUTATION = 0.6f; // The probability to mutate a gene
-const float PROBABILITY_OF_CROSSOVER = 0.7f; // The probability to use the new child or transfer the parent directly
+const float ELITISM_RATIO = 0.03f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
+const float PROBABILITY_OF_MUTATION = 0.8f; // The probability to mutate a gene
+const float PROBABILITY_OF_CROSSOVER = 0.9f; // The probability to use the new child or transfer the parent directly
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
