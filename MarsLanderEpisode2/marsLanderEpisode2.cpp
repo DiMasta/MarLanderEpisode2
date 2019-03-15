@@ -1017,12 +1017,17 @@ public:
 		return crashLineIdx;
 	}
 
+	bool getSelected() const {
+		return selected;
+	}
+
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 	void setPath(const Path& path) { this->path = path; }
 	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
 	void setCrashLineIdx(bool crashLineIdx) { this->crashLineIdx = crashLineIdx; }
+	void setSelected(bool selected) { this->selected = selected; }
 
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
@@ -1045,6 +1050,8 @@ private:
 	Genes chromosome;
 	Genes outputCommands; /// Actual commands for the online platform, could be OPTIMIZED when solution is found
 	Path path; /// Used to store the path which will be visualized in SVG, could be OPTIMIZED when solution is found
+
+	bool selected; /// Shows if the individual is selected for the next generation, for debug purpose only
 };
 
 //*************************************************************************************************************
@@ -1057,7 +1064,8 @@ Chromosome::Chromosome() :
 	path(),
 	collisionPoint(),
 	crashLineIdx(INVALID_ID),
-	outputCommands()
+	outputCommands(),
+	selected(false)
 {
 
 }
@@ -1093,6 +1101,7 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 		chromosome = other.chromosome;
 		outputCommands = other.outputCommands;
 		path = other.path;
+		selected = other.selected;
 	}
 	return *this;
 }
@@ -1350,7 +1359,8 @@ public:
 	void setChromosomes(const Chromosomes& population) { this->population = population; }
 
 	/// Use the Continuos Genetic Algorithm methods to make the new generation TODO: maybe not needed
-	void makeNextGeneration();
+	/// @param[in/out] svgManager used to make the visual debugging
+	void makeNextGeneration(SVGManager& svgManager);
 
 	/// Fill with chromosomes which are containing random changes in power [-1, 1] and angle [-15, 15]
 	/// The actual angles which should be outputted at the end are stores in each Chromosome's shuttle (rotate and power memebers)
@@ -1585,6 +1595,10 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 
 		selectParentsIdxs(parent0Idx, parent1Idx);
 
+		// Debug
+		population[parent0Idx].setSelected(true);
+		population[parent1Idx].setSelected(true);
+
 		// Maybe here a check if a valid pair of parents indecies is selected
 		crossover(parent0Idx, parent1Idx, children);
 
@@ -1595,7 +1609,7 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::makeNextGeneration() {
+void GeneticPopulation::makeNextGeneration(SVGManager& svgManager) {
 	prepareForRoulleteWheel();
 
 	Chromosomes children;
@@ -1603,6 +1617,16 @@ void GeneticPopulation::makeNextGeneration() {
 
 	// Apply elitism, get the best chromosomes from the population and overwrite some children
 	elitsm(population, children);
+
+	string populationSVGData = constructSVGData(svgManager);
+	string populationIdSVGData = svgManager.constructGId(populationId++);
+	svgManager.filePrintStr(populationIdSVGData);
+	svgManager.filePrintStr(DISPLAY_NONE);
+	svgManager.filePrintStr(ID_END);
+	svgManager.filePrintStr(populationSVGData);
+	svgManager.filePrintStr(GROUP_END);
+	svgManager.filePrintStr(NEW_LINE);
+	svgManager.filePrintStr(NEW_LINE);
 
 	population.clear();
 	population = children;
@@ -1853,18 +1877,6 @@ void Game::turnBegin() {
 	while (!answerFound) {
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromosome);
 
-#ifdef SVG
-		string populationSVGData = geneticPopulation.constructSVGData(svgManager);
-		string populationIdSVGData = svgManager.constructGId(populationId++);
-		svgManager.filePrintStr(populationIdSVGData);
-		svgManager.filePrintStr(DISPLAY_NONE);
-		svgManager.filePrintStr(ID_END);
-		svgManager.filePrintStr(populationSVGData);
-		svgManager.filePrintStr(GROUP_END);
-		svgManager.filePrintStr(NEW_LINE);
-		svgManager.filePrintStr(NEW_LINE);
-#endif // SVG
-
 #ifdef SIMULATION_OUTPUT
 		if (answerFound) {
 			// Commands to directly debug on the online platform
@@ -1879,7 +1891,7 @@ void Game::turnBegin() {
 			break;
 		}
 
-		geneticPopulation.makeNextGeneration();
+		geneticPopulation.makeNextGeneration(svgManager);
 	}
 }
 
