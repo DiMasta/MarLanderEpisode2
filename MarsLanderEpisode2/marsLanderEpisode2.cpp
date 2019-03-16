@@ -63,7 +63,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 150;
+const int MAX_POPULATION = 4;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.03f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.8f; // The probability to mutate a gene
@@ -1150,7 +1150,12 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append(STYLE_BEGIN);
 	svgStr.append(FILL_NONE);
 
-	string strokeRGB = svgManager.constructStrokeForRGB(255, int(255.f * evaluation), int(255.f * evaluation));
+	string strokeRGB = svgManager.constructStrokeForRGB(255, 255, 255);
+
+	if (selected) {
+		strokeRGB = svgManager.constructStrokeForRGB(0, 0, 255);
+	}
+
 	svgStr.append(strokeRGB);
 	svgStr.append(";");
 
@@ -1355,6 +1360,10 @@ public:
 		return surface;
 	}
 
+	int getPopulationId() const {
+		return populationId;
+	}
+
 	void setSurface(const Surface& surface) { this->surface = surface; }
 	void setChromosomes(const Chromosomes& population) { this->population = population; }
 
@@ -1402,11 +1411,16 @@ public:
 	///		- calc the cumulative sum
 	void prepareForRoulleteWheel();
 
+	/// Reset stats for each induvidual to the default values
+	void reset();
+
 	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
 	Chromosomes population;
 	Surface surface;
+
+	int populationId; /// For visual debug purposes
 };
 
 //*************************************************************************************************************
@@ -1414,7 +1428,8 @@ private:
 
 GeneticPopulation::GeneticPopulation() :
 	population(POPULATION_SIZE),
-	surface()
+	surface(),
+	populationId(0)
 {
 }
 
@@ -1610,6 +1625,7 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 //*************************************************************************************************************
 
 void GeneticPopulation::makeNextGeneration(SVGManager& svgManager) {
+	reset();
 	prepareForRoulleteWheel();
 
 	Chromosomes children;
@@ -1657,6 +1673,15 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 			Chromosome& currentChrom = population[chromIdx];
 			currentChrom.setEvaluation(currentChrom.getEvaluation() + population[nextChromIdx].getEvaluation());
 		}
+	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::reset() {
+	for (Chromosome& chromosome : population) {
+		chromosome.setSelected(false);
 	}
 }
 
@@ -1873,7 +1898,6 @@ void Game::getTurnInput() {
 void Game::turnBegin() {
 	bool answerFound = false;
 
-	int populationId = 0;
 	while (!answerFound) {
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromosome);
 
@@ -1887,7 +1911,7 @@ void Game::turnBegin() {
 		}
 #endif // SIMULATION_OUTPUT
 
-		if (populationId == MAX_POPULATION) {
+		if (geneticPopulation.getPopulationId() == MAX_POPULATION) {
 			break;
 		}
 
