@@ -19,6 +19,8 @@
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
+//#define USE_UNIFORM_RANDOM
+#define DEBUG_ONE_TURN
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -27,7 +29,6 @@
 using namespace std;
 
 const bool OUTPUT_GAME_DATA = 0;
-const bool USE_OLDSCHOOL_RAND = 1;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
@@ -81,6 +82,7 @@ const int MIN_POWER_STEP = -1;
 const int MAX_POWER_STEP = 1;
 const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
+const int LAST_COMMANDS_TO_EDIT = 3;
 
 enum ComponentType {
 	CT_INVALID = -1,
@@ -100,18 +102,22 @@ enum LandingZoneDirection {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+#ifdef USE_UNIFORM_RANDOM
 random_device rd;
 mt19937 mt(rd());
 uniform_real_distribution<float> dist(0.0, 1.0);
+#endif
 
 namespace Math {
-	float _randomFloatBetween0and1() {
-		return static_cast<float>(rand()) / FLOAT_MAX_RAND;
-	}
-
+#ifdef USE_UNIFORM_RANDOM
 	float randomFloatBetween0and1() {
 		return dist(mt);
 	}
+#else
+	float randomFloatBetween0and1() {
+		return static_cast<float>(rand()) / FLOAT_MAX_RAND;
+	}
+#endif
 };
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1290,7 +1296,6 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 
 		if (shuttle.goodForLanding(surface->getLandingZone())) {
 			chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
-			chromosome.push_back(Gene(0, 0));
 			goodForLanding = true;
 			break;
 		}
@@ -1401,8 +1406,8 @@ public:
 
 	/// Simulate all Chromosomes, using the commands from each gene to move the given shuttle
 	/// @param[in] shuttle the shuttle, for which the simulation is done TODO: do not use pointer
-	/// @param[out] solutionChromosome the Chromosome, which holds the genes for the solution, if any
-	bool simulate(Shuttle* shuttle, Chromosome& solutionChromosome);
+	/// @param[out] solutionCommands the solution commands
+	bool simulate(Shuttle* shuttle, Genes& solutionCommands);
 
 	/// Prepare the population for the roullete wheel selection:
 	///		- calc the sum of evaluations
@@ -1468,7 +1473,7 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosome) {
+bool GeneticPopulation::simulate(Shuttle* shuttle, Genes& solutionCommands) {
 	bool foundResChromosome = false;
 
 	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
@@ -1485,7 +1490,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 		chromosome.simulate(&surface, foundResChromosome);
 
 		if (foundResChromosome) {
-			solutionChromosome = chromosome;
+			solutionCommands = chromosome.getOutputCommands();
 			break;
 		}
 
@@ -1688,6 +1693,7 @@ void GeneticPopulation::reset() {
 //*************************************************************************************************************
 
 void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
+#ifdef SVG
 	string populationSVGData = constructSVGData(svgManager);
 	string populationIdSVGData = svgManager.constructGId(populationId);
 	svgManager.filePrintStr(populationIdSVGData);
@@ -1697,6 +1703,7 @@ void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
 	svgManager.filePrintStr(GROUP_END);
 	svgManager.filePrintStr(NEW_LINE);
 	svgManager.filePrintStr(NEW_LINE);
+#endif
 }
 
 //*************************************************************************************************************
@@ -1730,6 +1737,10 @@ public:
 	Game();
 	~Game();
 
+	void setSolutionCommands(const Genes& solutionCommands) {
+		this->solutionCommands = solutionCommands;
+	}
+
 	void initGame();
 	void gameBegin();
 	void gameLoop();
@@ -1741,6 +1752,10 @@ public:
 	void play();
 	void gameEnd();
 
+	/// Edit couple of last commands to make sure the shuttle is vertical
+	/// Last commands may differ from my calculations and the online platform
+	void postProcessSolutionCommands();
+
 	void debug() const;
 
 private:
@@ -1750,7 +1765,9 @@ private:
 	Surface* surface;
 
 	GeneticPopulation geneticPopulation;
-	Chromosome solutionChromosome;
+
+	/// Commands to output on the online platform
+	Genes solutionCommands;
 
 #ifdef SVG
 	SVGManager svgManager;
@@ -1766,7 +1783,7 @@ Game::Game() :
 	shuttle(NULL),
 	surface(NULL),
 	geneticPopulation(),
-	solutionChromosome()
+	solutionCommands()
 #ifdef SVG
 	,svgManager()
 #endif // SVG
@@ -1819,7 +1836,9 @@ void Game::gameLoop() {
 		makeTurn();
 		turnEnd();
 
+#ifdef DEBUG_ONE_TURN
 		break;
+#endif // DEBUG_ONE_TURN
 	}
 }
 
@@ -1913,23 +1932,26 @@ void Game::turnBegin() {
 	bool answerFound = false;
 
 	while (!answerFound) {
-		answerFound = geneticPopulation.simulate(shuttle, solutionChromosome);
+		answerFound = geneticPopulation.simulate(shuttle, solutionCommands);
+
+		if (answerFound) {
+			postProcessSolutionCommands();
 
 #ifdef SIMULATION_OUTPUT
-		if (answerFound) {
 			// Commands to directly debug on the online platform
-			const Genes& genes = solutionChromosome.getOutputCommands();
-			for (size_t geneIdx = 0; geneIdx < genes.size(); ++geneIdx) {
-				cout << genes[geneIdx].rotate << ", " << genes[geneIdx].power << "," << endl;
+			for (size_t geneIdx = 0; geneIdx < solutionCommands.size(); ++geneIdx) {
+				cout << solutionCommands[geneIdx].rotate << ", " << solutionCommands[geneIdx].power << "," << endl;
 			}
-		}
 #endif // SIMULATION_OUTPUT
+		}
 
-		if (geneticPopulation.getPopulationId() == MAX_POPULATION) {
+
+		if ((geneticPopulation.getPopulationId() == MAX_POPULATION) || answerFound) {
 			break;
 		}
-
-		geneticPopulation.makeNextGeneration(svgManager);
+		else {
+			geneticPopulation.makeNextGeneration(svgManager);
+		}
 	}
 }
 
@@ -1937,10 +1959,8 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn() {
-	if (solutionChromosome.isValid()) {
-		Gene& turnGene = solutionChromosome.getGene(turnsCount);
-		cout << turnGene.rotate << " " << turnGene.power << endl;
-	}
+	const Gene& command = solutionCommands[turnsCount];
+	cout << command.rotate << " " << command.power << endl;
 }
 
 //*************************************************************************************************************
@@ -1968,6 +1988,19 @@ void Game::gameEnd() {
 #ifdef SVG
 	svgManager.fileDone();
 #endif // SVG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Game::postProcessSolutionCommands() {
+	size_t lastGeneIdx = solutionCommands.size() - 1;
+
+	for (size_t commandIdx = lastGeneIdx - LAST_COMMANDS_TO_EDIT; commandIdx <= lastGeneIdx; ++commandIdx) {
+		Gene& command = solutionCommands[commandIdx];
+		command.rotate = 0;
+		command.power = MAX_POWER;
+	}
 }
 
 //*************************************************************************************************************
