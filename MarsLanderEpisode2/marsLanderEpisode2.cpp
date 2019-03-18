@@ -15,12 +15,12 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
+//#define SVG
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
 //#define USE_UNIFORM_RANDOM
-#define DEBUG_ONE_TURN
+//#define DEBUG_ONE_TURN
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -458,7 +458,9 @@ public:
 	/// @paramp[in] collisionPoint point where the shuttle crashed
 	bool crashedOnLandingArea(const Coords& collisionPoint) const;
 
+#ifdef SVG
 	string constructSVGData(const SVGManager& svgManager) const;
+#endif // SVG
 
 private:
 	Lines lines;
@@ -580,8 +582,8 @@ bool Surface::crashedOnLandingArea(const Coords& collisionPoint) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-string Surface::constructSVGData(const SVGManager& svgManager) const {
 #ifdef SVG
+string Surface::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = POLYLINE_BEGIN;
 
 	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
@@ -615,10 +617,8 @@ string Surface::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append(POLYLINE_END);
 
 	return svgStr;
-#endif // SVG
-
-	return "";
 }
+#endif // SVG
 
 //*************************************************************************************************************
 //*************************************************************************************************************
@@ -1045,7 +1045,9 @@ public:
 	void mutate();
 	bool isValid();
 
+#ifdef SVG
 	string constructSVGData(const SVGManager& svgManager) const;
+#endif // SVG
 
 private:
 	Shuttle shuttle;
@@ -1115,6 +1117,7 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+#ifdef SVG
 string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = "";
 
@@ -1178,6 +1181,7 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 
 	return svgStr;
 }
+#endif // SVG
 
 //*************************************************************************************************************
 //*************************************************************************************************************
@@ -1372,9 +1376,14 @@ public:
 	void setSurface(const Surface& surface) { this->surface = surface; }
 	void setChromosomes(const Chromosomes& population) { this->population = population; }
 
+
 	/// Use the Continuos Genetic Algorithm methods to make the new generation TODO: maybe not needed
 	/// @param[in/out] svgManager used to make the visual debugging
-	void makeNextGeneration(SVGManager& svgManager);
+	void makeNextGeneration(
+#ifdef SVG
+		SVGManager& svgManager
+#endif // SVG
+	);
 
 	/// Fill with chromosomes which are containing random changes in power [-1, 1] and angle [-15, 15]
 	/// The actual angles which should be outputted at the end are stores in each Chromosome's shuttle (rotate and power memebers)
@@ -1419,11 +1428,14 @@ public:
 	/// Reset stats for each induvidual to the default values
 	void reset();
 
+#ifdef SVG
 	/// Print the information for the current generation for visual debugging
 	/// @param[in/out] svgManager the manager resposible for the visual debugging
 	void visualDebugGeneration(SVGManager& svgManager) const;
 
+	/// Fill the visula debug information
 	string constructSVGData(const SVGManager& svgManager) const;
+#endif // SVG
 
 private:
 	Chromosomes population;
@@ -1635,7 +1647,12 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::makeNextGeneration(SVGManager& svgManager) {
+
+void GeneticPopulation::makeNextGeneration(
+#ifdef SVG
+	SVGManager& svgManager
+#endif // SVG
+) {
 	reset();
 	prepareForRoulleteWheel();
 
@@ -1645,12 +1662,15 @@ void GeneticPopulation::makeNextGeneration(SVGManager& svgManager) {
 	// Apply elitism, get the best chromosomes from the population and overwrite some children
 	elitsm(population, children);
 
+#ifdef SVG
 	visualDebugGeneration(svgManager);
+#endif // SVG
 
 	++populationId;
 	population.clear();
 	population = children;
 }
+
 
 //*************************************************************************************************************
 //*************************************************************************************************************
@@ -1692,8 +1712,9 @@ void GeneticPopulation::reset() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
 #ifdef SVG
+void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
+
 	string populationSVGData = constructSVGData(svgManager);
 	string populationIdSVGData = svgManager.constructGId(populationId);
 	svgManager.filePrintStr(populationIdSVGData);
@@ -1703,14 +1724,12 @@ void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
 	svgManager.filePrintStr(GROUP_END);
 	svgManager.filePrintStr(NEW_LINE);
 	svgManager.filePrintStr(NEW_LINE);
-#endif
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 string GeneticPopulation::constructSVGData(const SVGManager& svgManager) const {
-#ifdef SVG
 	string svgStr = "";
 
 	for (size_t chromeIdx = 0; chromeIdx < population.size(); ++chromeIdx) {
@@ -1722,10 +1741,8 @@ string GeneticPopulation::constructSVGData(const SVGManager& svgManager) const {
 	}
 
 	return svgStr;
-#endif // SVG
-
-	return "";
 }
+#endif // SVG
 
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
@@ -1950,7 +1967,11 @@ void Game::turnBegin() {
 			break;
 		}
 		else {
-			geneticPopulation.makeNextGeneration(svgManager);
+			geneticPopulation.makeNextGeneration(
+#ifdef SVG
+				svgManager
+#endif // SVG
+			);
 		}
 	}
 }
