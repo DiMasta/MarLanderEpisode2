@@ -19,8 +19,8 @@
 //#define REDIRECT_CIN_FROM_FILE
 //#define REDIRECT_COUT_TO_FILE
 //#define SIMULATION_OUTPUT
-//#define USE_UNIFORM_RANDOM
 //#define DEBUG_ONE_TURN
+//#define USE_UNIFORM_RANDOM
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -63,7 +63,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
-const int POPULATION_SIZE = 100;
+const int POPULATION_SIZE = 90;
 const int MAX_POPULATION = 100;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
@@ -1946,6 +1946,11 @@ void Game::getTurnInput() {
 //*************************************************************************************************************
 
 void Game::turnBegin() {
+	// Run the genetic algorithm only once
+	if (turnsCount > 0) {
+		return;
+	}
+
 	bool answerFound = false;
 
 	while (!answerFound) {
@@ -2022,6 +2027,12 @@ void Game::postProcessSolutionCommands() {
 		command.rotate = 0;
 		command.power = MAX_POWER;
 	}
+
+	// Add several safty commands
+	solutionCommands.push_back(Gene(0, MAX_POWER));
+	solutionCommands.push_back(Gene(0, MAX_POWER));
+	solutionCommands.push_back(Gene(0, MAX_POWER));
+	solutionCommands.push_back(Gene(0, MAX_POWER));
 }
 
 //*************************************************************************************************************
