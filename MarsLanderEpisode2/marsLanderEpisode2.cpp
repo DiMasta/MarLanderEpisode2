@@ -63,11 +63,11 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 4;
+const int MAX_POPULATION = 100;
 const int CHILDREN_COUNT = POPULATION_SIZE;
-const float ELITISM_RATIO = 0.03f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
-const float PROBABILITY_OF_MUTATION = 0.8f; // The probability to mutate a gene
-const float PROBABILITY_OF_CROSSOVER = 0.9f; // The probability to use the new child or transfer the parent directly
+const float ELITISM_RATIO = 0.f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
+const float PROBABILITY_OF_MUTATION = 0.f; // The probability to mutate a gene
+const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -105,11 +105,11 @@ mt19937 mt(rd());
 uniform_real_distribution<float> dist(0.0, 1.0);
 
 namespace Math {
-	float randomFloatBetween0and1() {
+	float _randomFloatBetween0and1() {
 		return static_cast<float>(rand()) / FLOAT_MAX_RAND;
 	}
 
-	float _randomFloatBetween0and1() {
+	float randomFloatBetween0and1() {
 		return dist(mt);
 	}
 };
@@ -1414,6 +1414,10 @@ public:
 	/// Reset stats for each induvidual to the default values
 	void reset();
 
+	/// Print the information for the current generation for visual debugging
+	/// @param[in/out] svgManager the manager resposible for the visual debugging
+	void visualDebugGeneration(SVGManager& svgManager) const;
+
 	string constructSVGData(const SVGManager& svgManager) const;
 
 private:
@@ -1496,6 +1500,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Chromosome& solutionChromosom
 
 void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 	float r = Math::randomFloatBetween0and1();
+	r += 0.5f;
 
 	const int populationSize = static_cast<int>(population.size());
 	parent0Idx = populationSize - 1; // If r is too small, the comparison won't pass, so use the last chromosome
@@ -1510,6 +1515,7 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 
 	while (parent1Idx == parent0Idx) {
 		r = Math::randomFloatBetween0and1();
+		r += 0.5f;
 
 		// Code duplication, at the moment I cannot think of more elegant layout
 		for (int chromIdx = 1; chromIdx < populationSize; ++chromIdx) {
@@ -1634,16 +1640,9 @@ void GeneticPopulation::makeNextGeneration(SVGManager& svgManager) {
 	// Apply elitism, get the best chromosomes from the population and overwrite some children
 	elitsm(population, children);
 
-	string populationSVGData = constructSVGData(svgManager);
-	string populationIdSVGData = svgManager.constructGId(populationId++);
-	svgManager.filePrintStr(populationIdSVGData);
-	svgManager.filePrintStr(DISPLAY_NONE);
-	svgManager.filePrintStr(ID_END);
-	svgManager.filePrintStr(populationSVGData);
-	svgManager.filePrintStr(GROUP_END);
-	svgManager.filePrintStr(NEW_LINE);
-	svgManager.filePrintStr(NEW_LINE);
+	visualDebugGeneration(svgManager);
 
+	++populationId;
 	population.clear();
 	population = children;
 }
@@ -1683,6 +1682,21 @@ void GeneticPopulation::reset() {
 	for (Chromosome& chromosome : population) {
 		chromosome.setSelected(false);
 	}
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
+	string populationSVGData = constructSVGData(svgManager);
+	string populationIdSVGData = svgManager.constructGId(populationId);
+	svgManager.filePrintStr(populationIdSVGData);
+	svgManager.filePrintStr(DISPLAY_NONE);
+	svgManager.filePrintStr(ID_END);
+	svgManager.filePrintStr(populationSVGData);
+	svgManager.filePrintStr(GROUP_END);
+	svgManager.filePrintStr(NEW_LINE);
+	svgManager.filePrintStr(NEW_LINE);
 }
 
 //*************************************************************************************************************
