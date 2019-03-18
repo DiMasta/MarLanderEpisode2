@@ -21,14 +21,13 @@
 //#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
+//#define OUTPUT_GAME_DATA
 
 #ifdef SVG
 #include "SVGManager.h"
 #endif // SVG
 
 using namespace std;
-
-const bool OUTPUT_GAME_DATA = 0;
 
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
@@ -69,6 +68,7 @@ const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
+const float CORRECT_THE_RANDOM_FOR_SELECTION = 0.5f; // Force the selection of more fit individuals
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -82,7 +82,7 @@ const int MIN_POWER_STEP = -1;
 const int MAX_POWER_STEP = 1;
 const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
-const int LAST_COMMANDS_TO_EDIT = 3;
+const int LAST_COMMANDS_TO_EDIT = 2;
 
 enum ComponentType {
 	CT_INVALID = -1,
@@ -1517,7 +1517,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, Genes& solutionCommands) {
 
 void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 	float r = Math::randomFloatBetween0and1();
-	r += 0.5f;
+	r += CORRECT_THE_RANDOM_FOR_SELECTION;
 
 	const int populationSize = static_cast<int>(population.size());
 	parent0Idx = populationSize - 1; // If r is too small, the comparison won't pass, so use the last chromosome
@@ -1532,7 +1532,7 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 
 	while (parent1Idx == parent0Idx) {
 		r = Math::randomFloatBetween0and1();
-		r += 0.5f;
+		r += CORRECT_THE_RANDOM_FOR_SELECTION;
 
 		// Code duplication, at the moment I cannot think of more elegant layout
 		for (int chromIdx = 1; chromIdx < populationSize; ++chromIdx) {
@@ -1866,9 +1866,9 @@ void Game::getGameInput() {
 	int surfaceN; // the number of points used to draw the surface of Mars.
 	cin >> surfaceN;
 
-	if (OUTPUT_GAME_DATA) {
+#ifdef OUTPUT_GAME_DATA
 		cerr << surfaceN << endl;
-	}
+#endif // OUTPUT_GAME_DATA
 
 	Coords point0;
 
@@ -1885,9 +1885,9 @@ void Game::getGameInput() {
 		int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
 		cin >> landX >> landY; cin.ignore();
 
-		if (OUTPUT_GAME_DATA) {
+#ifdef OUTPUT_GAME_DATA
 			cerr << landX << " " << landY << endl;
-		}
+#endif // OUTPUT_GAME_DATA
 
 		if (landingZoneFound && 0.f == rightDistToLandingZone) {
 			landingZoneDirection = LZD_LEFT;
@@ -1929,10 +1929,10 @@ void Game::getTurnInput() {
 
 	cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
 
-	if (OUTPUT_GAME_DATA) {
+#ifdef OUTPUT_GAME_DATA
 		cerr << X << " " << Y << " " << hSpeed << " " << vSpeed << " ";
 		cerr << fuel << " " << rotate << " " << power << endl;
-	}
+#endif // OUTPUT_GAME_DATA
 
 	shuttle->setPosition(Coords((float)X, (float)Y));
 	shuttle->setHSpeed((float)hSpeed);
@@ -1965,10 +1965,19 @@ void Game::turnBegin() {
 				cout << solutionCommands[geneIdx].rotate << ", " << solutionCommands[geneIdx].power << "," << endl;
 			}
 #endif // SIMULATION_OUTPUT
+
+			break;
 		}
 
 
-		if ((geneticPopulation.getPopulationId() == MAX_POPULATION) || answerFound) {
+		if (geneticPopulation.getPopulationId() == MAX_POPULATION) {
+#ifdef SIMULATION_OUTPUT
+			// Commands to directly debug on the online platform, for teh bes tindividual, not the solution
+			const Genes& bestChromosome = geneticPopulation.getPopulation().front().getOutputCommands();
+			for (size_t geneIdx = 0; geneIdx < bestChromosome.size(); ++geneIdx) {
+				cout << bestChromosome[geneIdx].rotate << ", " << bestChromosome[geneIdx].power << "," << endl;
+			}
+#endif // SIMULATION_OUTPUT
 			break;
 		}
 		else {
@@ -1985,8 +1994,10 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn() {
-	const Gene& command = solutionCommands[turnsCount];
-	cout << command.rotate << " " << command.power << endl;
+	if (solutionCommands.size() > 0) {
+		const Gene& command = solutionCommands[turnsCount];
+		cout << command.rotate << " " << command.power << endl;
+	}
 }
 
 //*************************************************************************************************************
@@ -2022,7 +2033,7 @@ void Game::gameEnd() {
 void Game::postProcessSolutionCommands() {
 	size_t lastGeneIdx = solutionCommands.size() - 1;
 
-	for (size_t commandIdx = lastGeneIdx - LAST_COMMANDS_TO_EDIT; commandIdx <= lastGeneIdx; ++commandIdx) {
+	for (size_t commandIdx = lastGeneIdx - LAST_COMMANDS_TO_EDIT + 1; commandIdx <= lastGeneIdx; ++commandIdx) {
 		Gene& command = solutionCommands[commandIdx];
 		command.rotate = 0;
 		command.power = MAX_POWER;
