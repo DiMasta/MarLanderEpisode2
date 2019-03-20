@@ -15,11 +15,11 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
-//#define DEBUG_ONE_TURN
+#define SVG
+#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
+#define SIMULATION_OUTPUT
+#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
 
@@ -83,6 +83,9 @@ const int MAX_POWER_STEP = 1;
 const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
 const int LAST_COMMANDS_TO_EDIT = 2;
+
+const int SELECTED_FLAG = 1;
+const int SOLUTION_FLAG = 1 << 1;
 
 enum ComponentType {
 	CT_INVALID = -1,
@@ -1023,17 +1026,17 @@ public:
 		return crashLineIdx;
 	}
 
-	bool getSelected() const {
-		return selected;
-	}
-
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 	void setPath(const Path& path) { this->path = path; }
 	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
 	void setCrashLineIdx(bool crashLineIdx) { this->crashLineIdx = crashLineIdx; }
-	void setSelected(bool selected) { this->selected = selected; }
+
+	void setFlag(int flag);
+	void unsetFlag(int flag);
+	bool hasFlag(int flag) const;
+	void resetFlags();
 
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
@@ -1059,7 +1062,7 @@ private:
 	Genes outputCommands; /// Actual commands for the online platform, could be OPTIMIZED when solution is found
 	Path path; /// Used to store the path which will be visualized in SVG, could be OPTIMIZED when solution is found
 
-	bool selected; /// Shows if the individual is selected for the next generation, for debug purpose only
+	unsigned int flags; /// Stored chromosome properties
 };
 
 //*************************************************************************************************************
@@ -1073,7 +1076,7 @@ Chromosome::Chromosome() :
 	collisionPoint(),
 	crashLineIdx(INVALID_ID),
 	outputCommands(),
-	selected(false)
+	flags(0)
 {
 
 }
@@ -1084,6 +1087,34 @@ Chromosome::Chromosome() :
 Chromosome::~Chromosome() {
 	chromosome.clear();
 	path.clear();
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::setFlag(int flag) {
+	flags |= flag;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::unsetFlag(int flag) {
+	flags &= ~flag;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Chromosome::hasFlag(int flag) const {
+	return flags & flag;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::resetFlags() {
+	flags = 0;
 }
 
 //*************************************************************************************************************
@@ -1109,7 +1140,7 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 		chromosome = other.chromosome;
 		outputCommands = other.outputCommands;
 		path = other.path;
-		selected = other.selected;
+		flags = other.flags;
 	}
 	return *this;
 }
@@ -1161,8 +1192,11 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 
 	string strokeRGB = svgManager.constructStrokeForRGB(255, 255, 255);
 
-	if (selected) {
+	if (hasFlag(SELECTED_FLAG)) {
 		strokeRGB = svgManager.constructStrokeForRGB(0, 0, 255);
+	}
+	else if (hasFlag(SOLUTION_FLAG)) {
+		strokeRGB = svgManager.constructStrokeForRGB(0, 255, 0);
 	}
 
 	svgStr.append(strokeRGB);
@@ -1634,8 +1668,8 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 		selectParentsIdxs(parent0Idx, parent1Idx);
 
 		// Debug
-		population[parent0Idx].setSelected(true);
-		population[parent1Idx].setSelected(true);
+		population[parent0Idx].setFlag(SELECTED_FLAG);
+		population[parent1Idx].setFlag(SELECTED_FLAG);
 
 		// Maybe here a check if a valid pair of parents indecies is selected
 		crossover(parent0Idx, parent1Idx, children);
@@ -1705,7 +1739,7 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 
 void GeneticPopulation::reset() {
 	for (Chromosome& chromosome : population) {
-		chromosome.setSelected(false);
+		chromosome.resetFlags();
 	}
 }
 
