@@ -32,6 +32,7 @@ using namespace std;
 const int MAP_WIDTH = 7000;
 const int MAP_HEIGHT = 3000;
 const float MAX_DISTANCE = static_cast<float>(sqrt((MAP_WIDTH * MAP_WIDTH) + (MAP_HEIGHT * MAP_HEIGHT)));
+//const float MAX_DISTANCE = 5088.6463f; /// distance from most left to the left point of the landing zone
 const int ASPECT = 10;
 const int INVALID_ID = -1;
 const int INVALID_NODE_DEPTH = -1;
@@ -63,12 +64,12 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 100;
+const int MAX_POPULATION = 1000;
 const int CHILDREN_COUNT = POPULATION_SIZE;
-const float ELITISM_RATIO = 0.f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
-const float PROBABILITY_OF_MUTATION = 0.f; // The probability to mutate a gene
-const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
-const float CORRECT_THE_RANDOM_FOR_SELECTION = 0.5f; // Force the selection of more fit individuals
+const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
+const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
+const float PROBABILITY_OF_CROSSOVER = 0.95f; // The probability to use the new child or transfer the parent directly
+const float CORRECT_THE_RANDOM_FOR_SELECTION = 0.0f; // Force the selection of more fit individuals
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -1002,6 +1003,10 @@ public:
 		return shuttle;
 	}
 
+	float getOriginalEvaluation() const {
+		return originalEvaluation;
+	}
+
 	float getEvaluation() const {
 		return evaluation;
 	}
@@ -1054,6 +1059,7 @@ public:
 
 private:
 	Shuttle shuttle;
+	float originalEvaluation; /// For debug purposes
 	float evaluation; /// Maybe I could work with integer evaluation !? experiment
 	Coords collisionPoint; /// Calculations for the crash point may slitly vary from the platform
 	int crashLineIdx;
@@ -1070,6 +1076,7 @@ private:
 
 Chromosome::Chromosome() :
 	shuttle(),
+	originalEvaluation(0.f),
 	evaluation(0.f),
 	chromosome(),
 	path(),
@@ -1134,6 +1141,7 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 		path.clear();
 
 		shuttle = other.shuttle;
+		originalEvaluation = other.originalEvaluation;
 		evaluation = other.evaluation;
 		collisionPoint = other.collisionPoint;
 		crashLineIdx = other.crashLineIdx;
@@ -1158,7 +1166,7 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	vector<string> titleLines;
 	shuttle.getTitleLines(titleLines);
 	string evaluationLine = "Evaluation: ";
-	evaluationLine.append(to_string(evaluation));
+	evaluationLine.append(to_string(originalEvaluation));
 	titleLines.push_back(evaluationLine);
 	string title = svgManager.constructMultiLineTitle(titleLines);
 	svgStr.append(title);
@@ -1244,7 +1252,7 @@ void Chromosome::evaluate(Surface* surface) {
 		const float distance = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
 
 		// Calculate score from distance
-		evaluation = 100 - (100 * distance / MAX_DISTANCE);
+		evaluation = 100.f - (100.f * distance / MAX_DISTANCE);
 
 		// High speeds are bad, they decrease maneuvrability
 		const float speedPen = 0.1f * max(currentSpeed - 100.f, 0.f);
@@ -1284,6 +1292,8 @@ void Chromosome::evaluate(Surface* surface) {
 
 		evaluation = 200.f + (100.f * shuttle.getFuel() / shuttle.getInitialFuel());
 	}
+
+	originalEvaluation = evaluation;
 
 	//float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
 	//float distPortion = 1.f - (dist / MAX_DISTANCE);
@@ -1991,6 +2001,10 @@ void Game::turnBegin() {
 		answerFound = geneticPopulation.simulate(shuttle, solutionCommands);
 
 		if (answerFound) {
+#ifdef SVG
+			geneticPopulation.visualDebugGeneration(svgManager);
+#endif // SVG
+
 			postProcessSolutionCommands();
 
 #ifdef SIMULATION_OUTPUT
