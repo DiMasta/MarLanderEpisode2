@@ -1,0 +1,138 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+int out[] = {
+84, 1,
+75, 2,
+71, 3,
+61, 4,
+48, 4,
+37, 4,
+32, 4,
+27, 4,
+25, 4,
+19, 4,
+20, 4,
+17, 4,
+12, 4,
+12, 4,
+13, 4,
+12, 4,
+11, 4,
+8, 4,
+6, 4,
+7, 4,
+1, 4,
+0, 4,
+-1, 4,
+-1, 4,
+-9, 4,
+-10, 4,
+-6, 4,
+-13, 4,
+-12, 4,
+-12, 4,
+-11, 4,
+-9, 4,
+-12, 4,
+-12, 4,
+-10, 4,
+-15, 4,
+-17, 4,
+-15, 4,
+-15, 4,
+-14, 4,
+-10, 4,
+-12, 4,
+-9, 4,
+-5, 4,
+-9, 4,
+-5, 4,
+-5, 4,
+-8, 4,
+-8, 4,
+-6, 4,
+-6, 4,
+-3, 4,
+-6, 4,
+-5, 4,
+-9, 4,
+-9, 4,
+-15, 4,
+-17, 4,
+-16, 4,
+-19, 4,
+-19, 4,
+-21, 4,
+-23, 4,
+-22, 4,
+-22, 4,
+-18, 4,
+-20, 4,
+-19, 4,
+-17, 4,
+-17, 4,
+-17, 4,
+-19, 4,
+-13, 4,
+-21, 4,
+-21, 4,
+-29, 4,
+-29, 4,
+-25, 4,
+-26, 4,
+-23, 4,
+-23, 4,
+-24, 4,
+-21, 3,
+-15, 3,
+0, 4,
+0, 4,
+0, 4,
+0, 4,
+0, 4,
+0, 4,
+0, 0,
+0, 0,
+0, 0,
+0, 0,
+0, 0,
+0, 0
+};
+
+int main() {
+    int surfaceN; // the number of points used to draw the surface of Mars.
+    cin >> surfaceN; cin.ignore();
+    cerr << surfaceN << endl;
+    
+    for (int i = 0; i < surfaceN; i++) {
+        int landX; // X coordinate of a surface point. (0 to 6999)
+        int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
+        cin >> landX >> landY; cin.ignore();
+        cerr << " " << landX << " " << landY << endl;
+    }
+
+    int turn = 0;
+
+    // game loop
+    while (1) {
+        int X;
+        int Y;
+        int hSpeed; // the horizontal speed (in m/s), can be negative.
+        int vSpeed; // the vertical speed (in m/s), can be negative.
+        int fuel; // the quantity of remaining fuel in liters.
+        int rotate; // the rotation angle in degrees (-90 to 90).
+        int power; // the thrust power (0 to 4).
+        cin >> X >> Y >> hSpeed >> vSpeed >> fuel >> rotate >> power; cin.ignore();
+    
+        cerr << X << " " << Y << " " << hSpeed << " " << vSpeed << " " << fuel << " " << rotate << " " << power << endl;
+        
+		cout << out[turn] << " " << out[turn + 1] << endl;
+        
+        turn += 2;
+    }
+}

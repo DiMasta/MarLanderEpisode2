@@ -15,7 +15,7 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
+//#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
@@ -1233,6 +1233,7 @@ void Chromosome::evaluate(Surface* surface) {
 	const float hSpeed = shuttle.getHSpeed();
 	const float vSpeed = shuttle.getVSpeed();
 	const float currentSpeed = sqrt((hSpeed * hSpeed) + (vSpeed * vSpeed));
+	const int rotation = shuttle.getRotate();
 
 	// 0-100: crashed somewhere, calculate score by distance to landing area
 	//if (!hitLandingArea) {
@@ -1258,7 +1259,7 @@ void Chromosome::evaluate(Surface* surface) {
 		const float speedPen = 0.1f * max(currentSpeed - 100.f, 0.f);
 		evaluation -= speedPen;
 	}
-	else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed)) {
+	else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed) || abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
 	//// 100-200: crashed into landing area, calculate score by speed above safety
 	//else if (this.yspeed < -40 || 20 < Math.abs(this.xspeed)) {
 	//	var xPen = 0;
@@ -1274,15 +1275,20 @@ void Chromosome::evaluate(Surface* surface) {
 	//}
 		float xPen = 0.f;
 		if (MAX_H_ABS_SPEED < abs(hSpeed)) {
-			xPen = (abs(hSpeed) - MAX_V_ABS_SPEED) / 2.f;
+			xPen = (abs(hSpeed) - MAX_H_ABS_SPEED) / 2.f;
 		}
 
 		float yPen = 0.f;
-		if (MAX_V_ABS_SPEED < abs(vSpeed)) {
+		if (vSpeed < -MAX_V_ABS_SPEED) {
 			yPen = (-MAX_V_ABS_SPEED - vSpeed) / 2.f;
 		}
 
-		evaluation = 200.f - xPen - yPen;
+		float rotationPen = 0.f;
+		if (abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
+			rotationPen = (abs(rotation) - MAX_ROTATION_ANGLE_STEP) / 2.f;
+		}
+
+		evaluation = 200.f - xPen - yPen - rotationPen;
 	}
 	else {
 		//// 200-300: landed safely, calculate score by fuel remaining
@@ -1982,6 +1988,7 @@ void Game::getTurnInput() {
 	shuttle->setHSpeed((float)hSpeed);
 	shuttle->setVSpeed((float)vSpeed);
 	shuttle->setFuel(fuel);
+	shuttle->setInitialFuel(fuel);
 	shuttle->setRotate(rotate);
 	shuttle->setPower(power);
 }
@@ -1998,6 +2005,7 @@ void Game::turnBegin() {
 	bool answerFound = false;
 
 	while (!answerFound) {
+		const int populationId = geneticPopulation.getPopulationId(); // For debug
 		answerFound = geneticPopulation.simulate(shuttle, solutionCommands);
 
 		if (answerFound) {
@@ -2092,6 +2100,12 @@ void Game::postProcessSolutionCommands() {
 	solutionCommands.push_back(Gene(0, MAX_POWER));
 	solutionCommands.push_back(Gene(0, MAX_POWER));
 	solutionCommands.push_back(Gene(0, MAX_POWER));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
 }
 
 //*************************************************************************************************************
