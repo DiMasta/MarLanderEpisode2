@@ -16,11 +16,11 @@
 #include <iterator>
 
 //#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
-#define DEBUG_ONE_TURN
-#define USE_UNIFORM_RANDOM
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
+//#define DEBUG_ONE_TURN
+//#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
 
 #ifdef SVG
@@ -1003,10 +1003,6 @@ public:
 		return shuttle;
 	}
 
-	float getOriginalEvaluation() const {
-		return originalEvaluation;
-	}
-
 	float getEvaluation() const {
 		return evaluation;
 	}
@@ -1017,10 +1013,6 @@ public:
 
 	Genes getOutputCommands() const {
 		return outputCommands;
-	}
-
-	Path getPath() const {
-		return path;
 	}
 
 	Coords getCollisionPoint() const {
@@ -1034,7 +1026,7 @@ public:
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
-	void setPath(const Path& path) { this->path = path; }
+	
 	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
 	void setCrashLineIdx(bool crashLineIdx) { this->crashLineIdx = crashLineIdx; }
 
@@ -1054,21 +1046,35 @@ public:
 	bool isValid();
 
 #ifdef SVG
+	Path getPath() const {
+		return path;
+	}
+
+
+	float getOriginalEvaluation() const {
+		return originalEvaluation;
+	}
+
+	void setPath(const Path& path) { this->path = path; }
+
 	string constructSVGData(const SVGManager& svgManager) const;
 #endif // SVG
 
 private:
 	Shuttle shuttle;
-	float originalEvaluation; /// For debug purposes
 	float evaluation; /// Maybe I could work with integer evaluation !? experiment
 	Coords collisionPoint; /// Calculations for the crash point may slitly vary from the platform
 	int crashLineIdx;
 
 	Genes chromosome;
 	Genes outputCommands; /// Actual commands for the online platform, could be OPTIMIZED when solution is found
-	Path path; /// Used to store the path which will be visualized in SVG, could be OPTIMIZED when solution is found
 
 	unsigned int flags; /// Stored chromosome properties
+
+#ifdef SVG
+	float originalEvaluation; /// For debug purposes
+	Path path; /// Used to store the path which will be visualized in SVG, could be OPTIMIZED when solution is found
+#endif // SVG
 };
 
 //*************************************************************************************************************
@@ -1076,14 +1082,17 @@ private:
 
 Chromosome::Chromosome() :
 	shuttle(),
-	originalEvaluation(0.f),
 	evaluation(0.f),
 	chromosome(),
-	path(),
 	collisionPoint(),
 	crashLineIdx(INVALID_ID),
 	outputCommands(),
 	flags(0)
+#ifdef SVG
+	,
+	originalEvaluation(0.f),
+	path()
+#endif // SVG
 {
 
 }
@@ -1093,7 +1102,10 @@ Chromosome::Chromosome() :
 
 Chromosome::~Chromosome() {
 	chromosome.clear();
+
+#ifdef SVG
 	path.clear();
+#endif // SVG
 }
 
 //*************************************************************************************************************
@@ -1138,17 +1150,20 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 	if (this != &other) {
 		chromosome.clear();
 		outputCommands.clear();
-		path.clear();
 
 		shuttle = other.shuttle;
-		originalEvaluation = other.originalEvaluation;
 		evaluation = other.evaluation;
 		collisionPoint = other.collisionPoint;
 		crashLineIdx = other.crashLineIdx;
 		chromosome = other.chromosome;
 		outputCommands = other.outputCommands;
-		path = other.path;
 		flags = other.flags;
+
+#ifdef SVG
+		path.clear();
+		originalEvaluation = other.originalEvaluation;
+		path = other.path;
+#endif // SVG
 	}
 	return *this;
 }
@@ -1235,34 +1250,22 @@ void Chromosome::evaluate(Surface* surface) {
 	const bool validYPos = yPos >= 0 && yPos < MAP_HEIGHT;
 	
 	if (!validXPos || !validYPos) {
-		originalEvaluation = 0.f;
 		evaluation = 0.f;
+
+#ifdef SVG
+		originalEvaluation = 0.f;
+#endif // SVG
 
 		return;
 	}
 
-	//var currentSpeed = Math.sqrt(Math.pow(this.xspeed, 2) + Math.pow(this.yspeed, 2));
 	const float hSpeed = shuttle.getHSpeed();
 	const float vSpeed = shuttle.getVSpeed();
 	const float currentSpeed = sqrt((hSpeed * hSpeed) + (vSpeed * vSpeed));
 	const int rotation = shuttle.getRotate();
 
-
-	// 0-100: crashed somewhere, calculate score by distance to landing area
-	//if (!hitLandingArea) {
-	//
-	//	var lastX = this.points[this.points.length-2][0];
-	//	var lastY = this.points[this.points.length-2][1];
-	//	var distance = level.getDistanceToLandingArea(lastX, lastY);
-	//
-	//	// Calculate score from distance
-	//	this.score = 100 - (100 * distance / level.max_dist);
-	//
-	//	// High speeds are bad, they decrease maneuvrability
-	//	var speedPen = 0.1 * Math.max(currentSpeed - 100, 0);
-	//	this.score -= speedPen;
-	//}
 	if (!surface->crashedOnLandingArea(collisionPoint)) {
+		// 0-100: crashed somewhere, calculate score by distance to landing area
 		const float distance = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
 
 		// Calculate score from distance
@@ -1273,19 +1276,8 @@ void Chromosome::evaluate(Surface* surface) {
 		evaluation -= speedPen;
 	}
 	else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed) || abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
-	//// 100-200: crashed into landing area, calculate score by speed above safety
-	//else if (this.yspeed < -40 || 20 < Math.abs(this.xspeed)) {
-	//	var xPen = 0;
-	//	if (20 < Math.abs(this.xspeed)) {
-	//		xPen = (Math.abs(this.xspeed) - 20) / 2
-	//	}
-	//	var yPen = 0
-	//		if (this.yspeed < -40) {
-	//			yPen = (-40 - this.yspeed) / 2
-	//		}
-	//	this.score = 200 - xPen - yPen
-	//		return;
-	//}
+		// 100-200: crashed into landing area, calculate score by speed above safety
+	
 		float xPen = 0.f;
 		if (MAX_H_ABS_SPEED < abs(hSpeed)) {
 			xPen = (abs(hSpeed) - MAX_H_ABS_SPEED) / 2.f;
@@ -1304,35 +1296,12 @@ void Chromosome::evaluate(Surface* surface) {
 		evaluation = 200.f - xPen - yPen - rotationPen;
 	}
 	else {
-		//// 200-300: landed safely, calculate score by fuel remaining
-		//else {
-		//	this.score = 200 + (100 * this.fuel / this.initFuel)
-		//}
-
+		// 200-300: landed safely, calculate score by fuel remaining
 		evaluation = 200.f + (100.f * shuttle.getFuel() / shuttle.getInitialFuel());
 	}
-
+#ifdef SVG
 	originalEvaluation = evaluation;
-
-	//float dist = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
-	//float distPortion = 1.f - (dist / MAX_DISTANCE);
-	//distPortion *= DIST_WEIGHT;
-	//
-	//float angle = static_cast<float>(abs(shuttle.getRotate()));
-	//float anglePortion = 1.f - (angle / MAX_ROTATION_ANGLE);
-	//
-	//// The limit for the H speed must be considered somehow
-	//float hSpeed = abs(shuttle.getHSpeed());
-	//float hSpeedPortion = 1.f - (hSpeed / MAX_POSSIBLE_HSPEED);
-	//
-	//// The limit for the H speed must be considered somehow
-	//float vSpeed = abs(shuttle.getVSpeed());
-	//float vSpeedPortion = 1.f - (vSpeed / MAX_POSSIBLE_VSPEED);
-	//
-	//// After these are polished, add evaluation for the fuel
-	//
-	//evaluation = distPortion + anglePortion + hSpeedPortion + vSpeedPortion;
-	////evaluation *= COMBINED_EVALUATION_WEIGHT;
+#endif // SVG
 }
 
 //*************************************************************************************************************
@@ -1353,13 +1322,21 @@ Gene Chromosome::getGene(int geneIdx) const {
 //*************************************************************************************************************
 
 void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
+#ifdef SVG
 	path.clear();
+#endif // SVG
+
+	// Use the last postion for shuttle to define a line and check if it crosses a surface line
+	Coords shuttleLastPosition;
 
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
 		Gene* gene = &chromosome[geneIdx];
 		shuttle.simulate(gene->rotate, gene->power);
 		outputCommands.push_back(Gene(shuttle.getRotate(), shuttle.getPower()));
+
+#ifdef SVG
 		path.push_back(shuttle.getPosition());
+#endif // SVG
 
 		if (shuttle.goodForLanding(surface->getLandingZone())) {
 			chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
@@ -1368,14 +1345,17 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 		}
 
 		if (geneIdx > 0) {
-			const Coords& lastPosition = path[geneIdx - 1];
-			surface->collisionWithSurface(lastPosition, shuttle.getPosition(), collisionPoint, crashLineIdx);
+			surface->collisionWithSurface(shuttleLastPosition, shuttle.getPosition(), collisionPoint, crashLineIdx);
 
 			if (collisionPoint.isValid()) {
+#ifdef SVG
 				path[path.size() - 1] = collisionPoint;
+#endif // SVG
 				break;
 			}
 		}
+
+		shuttleLastPosition = shuttle.getPosition();
 	}
 }
 
@@ -1997,9 +1977,9 @@ void Game::getTurnInput() {
 		cerr << fuel << " " << rotate << " " << power << endl;
 #endif // OUTPUT_GAME_DATA
 
-	shuttle->setPosition(Coords((float)X, (float)Y));
-	shuttle->setHSpeed((float)hSpeed);
-	shuttle->setVSpeed((float)vSpeed);
+	shuttle->setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
+	shuttle->setHSpeed(static_cast<float>(hSpeed));
+	shuttle->setVSpeed(static_cast<float>(vSpeed));
 	shuttle->setFuel(fuel);
 	shuttle->setInitialFuel(fuel);
 	shuttle->setRotate(rotate);
@@ -2018,7 +1998,6 @@ void Game::turnBegin() {
 	bool answerFound = false;
 
 	while (!answerFound) {
-		const int populationId = geneticPopulation.getPopulationId(); // For debug
 		answerFound = geneticPopulation.simulate(shuttle, solutionCommands);
 
 		if (answerFound) {
@@ -2063,6 +2042,14 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn() {
+#ifdef OUTPUT_GAME_DATA
+	cerr << turnsCount << endl;
+	cerr << "Solution size: " << solutionCommands.size() << endl;
+	for (const Gene& gene : solutionCommands) {
+		cerr << gene.rotate << " " << gene.power << endl;
+	}
+#endif // OUTPUT_GAME_DATA
+
 	if (solutionCommands.size() > 0) {
 		const Gene& command = solutionCommands[turnsCount];
 		cout << command.rotate << " " << command.power << endl;
@@ -2111,8 +2098,10 @@ void Game::postProcessSolutionCommands() {
 	// Add several safty commands
 	solutionCommands.push_back(Gene(0, MAX_POWER));
 	solutionCommands.push_back(Gene(0, MAX_POWER));
-	solutionCommands.push_back(Gene(0, MAX_POWER));
-	solutionCommands.push_back(Gene(0, MAX_POWER));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
+	solutionCommands.push_back(Gene(0, 0));
 	solutionCommands.push_back(Gene(0, 0));
 	solutionCommands.push_back(Gene(0, 0));
 	solutionCommands.push_back(Gene(0, 0));
