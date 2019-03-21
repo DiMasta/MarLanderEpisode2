@@ -15,12 +15,12 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
+//#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
 #define DEBUG_ONE_TURN
-//#define USE_UNIFORM_RANDOM
+#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
 
 #ifdef SVG
@@ -62,9 +62,9 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = /*100;//*/300;
+const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 200;
+const int MAX_POPULATION = 1000;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
@@ -83,7 +83,7 @@ const int MIN_POWER_STEP = -1;
 const int MAX_POWER_STEP = 1;
 const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
-const int LAST_COMMANDS_TO_EDIT = 2;
+const int LAST_COMMANDS_TO_EDIT = 1;
 
 const int SELECTED_FLAG = 1;
 const int SOLUTION_FLAG = 1 << 1;
@@ -2102,11 +2102,11 @@ void Game::gameEnd() {
 void Game::postProcessSolutionCommands() {
 	size_t lastGeneIdx = solutionCommands.size() - 1;
 
-	//for (size_t commandIdx = lastGeneIdx - LAST_COMMANDS_TO_EDIT + 1; commandIdx <= lastGeneIdx; ++commandIdx) {
-	//	Gene& command = solutionCommands[commandIdx];
-	//	command.rotate = 0;
-	//	command.power = MAX_POWER;
-	//}
+	for (size_t commandIdx = lastGeneIdx - LAST_COMMANDS_TO_EDIT + 1; commandIdx <= lastGeneIdx; ++commandIdx) {
+		Gene& command = solutionCommands[commandIdx];
+		command.rotate = 0;
+		command.power = MAX_POWER;
+	}
 
 	// Add several safty commands
 	solutionCommands.push_back(Gene(0, MAX_POWER));
