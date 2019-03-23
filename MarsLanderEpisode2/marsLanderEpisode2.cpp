@@ -16,9 +16,9 @@
 #include <iterator>
 
 //#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -83,11 +83,13 @@ const int MIN_POWER_STEP = -1;
 const int MAX_POWER_STEP = 1;
 const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
-const int LAST_COMMANDS_TO_EDIT = 1;
+const int LAST_COMMANDS_TO_EDIT = 2;
 const int ADDITIONAL_TURNS = 4;
+const int CHECK_FOR_CRASH_AFTER_GENE = 30;
 
-const int SELECTED_FLAG = 1;
-const int SOLUTION_FLAG = 1 << 1;
+const int SELECTED_FLAG = 1;						// 1
+const int SOLUTION_FLAG = 1 << 1;					// 2
+const int CRASHED_ON_LANDING_ZONE_FLAG = 1 << 2;	// 4
 
 enum ComponentType {
 	CT_INVALID = -1,
@@ -639,9 +641,6 @@ float Surface::findDistanceToLandingZone(const Coords& from, int crashLineIdx) c
 			if (LZD_RIGHT == crashedLine.getLandingZoneDirection()) {
 				pointToLandingZone = crashedLine.getPoint1();
 			}
-			else if (LZD_HERE == crashedLine.getLandingZoneDirection()) {
-				pointToLandingZone = from;
-			}
 
 			distTolandingZone = distance(from, pointToLandingZone);
 			const Line* line = &crashedLine;
@@ -1016,24 +1015,9 @@ public:
 		return chromosome;
 	}
 
-	Genes getOutputCommands() const {
-		return outputCommands;
-	}
-
-	Coords getCollisionPoint() const {
-		return collisionPoint;
-	}
-
-	int getCrashLineIdx() const {
-		return crashLineIdx;
-	}
-
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
-	
-	void setCollisionPoint(const Coords& collisionPoint) { this->collisionPoint = collisionPoint; }
-	void setCrashLineIdx(bool crashLineIdx) { this->crashLineIdx = crashLineIdx; }
 
 	void setFlag(int flag);
 	void unsetFlag(int flag);
@@ -1068,11 +1052,8 @@ public:
 private:
 	Shuttle shuttle;
 	float evaluation; /// Maybe I could work with integer evaluation !? experiment
-	Coords collisionPoint; /// Calculations for the crash point may slitly vary from the platform
-	int crashLineIdx;
 
 	Genes chromosome;
-	Genes outputCommands; /// Actual commands for the online platform, could be OPTIMIZED when solution is found
 
 	unsigned int flags; /// Stored chromosome properties
 
@@ -1089,9 +1070,6 @@ Chromosome::Chromosome() :
 	shuttle(),
 	evaluation(0.f),
 	chromosome(),
-	collisionPoint(),
-	crashLineIdx(INVALID_ID),
-	outputCommands(),
 	flags(0)
 #ifdef SVG
 	,
@@ -1154,14 +1132,10 @@ bool Chromosome::operator<(const Chromosome& chromosome) const {
 Chromosome& Chromosome::operator=(const Chromosome& other) {
 	if (this != &other) {
 		chromosome.clear();
-		outputCommands.clear();
 
 		shuttle = other.shuttle;
 		evaluation = other.evaluation;
-		collisionPoint = other.collisionPoint;
-		crashLineIdx = other.crashLineIdx;
 		chromosome = other.chromosome;
-		outputCommands = other.outputCommands;
 		flags = other.flags;
 
 #ifdef SVG
@@ -1269,9 +1243,9 @@ void Chromosome::evaluate(Surface* surface) {
 	const float currentSpeed = sqrt((hSpeed * hSpeed) + (vSpeed * vSpeed));
 	const int rotation = shuttle.getRotate();
 
-	if (!surface->crashedOnLandingArea(collisionPoint)) {
+	if (!hasFlag(CRASHED_ON_LANDING_ZONE_FLAG)) {
 		// 0-100: crashed somewhere, calculate score by distance to landing area
-		const float distance = surface->findDistanceToLandingZone(collisionPoint, crashLineIdx);
+		const float distance = surface->findDistanceToLandingZone(shuttle.getPosition(), crashLineIdx);
 
 		// Calculate score from distance
 		evaluation = 100.f - (100.f * distance / MAX_DISTANCE);
@@ -1332,35 +1306,40 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 #endif // SVG
 
 	// Use the last postion for shuttle to define a line and check if it crosses a surface line
-	Coords shuttleLastPosition;
+	Shuttle previousShuttle;
 
 	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
-		Gene* gene = &chromosome[geneIdx];
-		shuttle.simulate(gene->rotate, gene->power);
-		outputCommands.push_back(Gene(shuttle.getRotate(), shuttle.getPower()));
+		const Gene& gene = chromosome[geneIdx];
+		shuttle.simulate(gene.rotate, gene.power);
 
 #ifdef SVG
 		path.push_back(shuttle.getPosition());
 #endif // SVG
 
-		if (shuttle.goodForLanding(surface->getLandingZone())) {
-			chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
-			goodForLanding = true;
-			break;
-		}
+		if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
+			//if (shuttle.goodForLanding(surface->getLandingZone())) {
+			//	chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
+			//	goodForLanding = true;
+			//	break;
+			//}
 
-		if (geneIdx > 0) {
-			surface->collisionWithSurface(shuttleLastPosition, shuttle.getPosition(), collisionPoint, crashLineIdx);
+			surface->collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), collisionPoint, crashOnLandingZone);
 
 			if (collisionPoint.isValid()) {
+				// If the collision is on the landing zone
+				// Check previous simulation stats
+				// If before the collision and after the collision the speed is in range, good for landing
+
 #ifdef SVG
 				path[path.size() - 1] = collisionPoint;
 #endif // SVG
 				break;
 			}
+
+			previousShuttle = shuttle;
 		}
 
-		shuttleLastPosition = shuttle.getPosition();
+		
 	}
 }
 
@@ -1553,7 +1532,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, int& solutionChromIdx) {
 		chromosome.simulate(&surface, foundResChromosome);
 
 		if (foundResChromosome) {
-			solutionChromIdx = chromIdx;
+			solutionChromIdx = static_cast<int>(chromIdx);
 			break;
 		}
 
@@ -2016,15 +1995,9 @@ void Game::turnBegin() {
 			break;
 		}
 
-
+		// May be I could remove this check when I'm sure there always will be a solution
+		// To optimize one if statement
 		if (geneticPopulation.getPopulationId() == MAX_POPULATION) {
-#ifdef SIMULATION_OUTPUT
-			// Commands to directly debug on the online platform, for teh bes tindividual, not the solution
-			const Genes& bestChromosome = geneticPopulation.getPopulation().front().getOutputCommands();
-			for (size_t geneIdx = 0; geneIdx < bestChromosome.size(); ++geneIdx) {
-				cout << bestChromosome[geneIdx].rotate << ", " << bestChromosome[geneIdx].power << "," << endl;
-			}
-#endif // SIMULATION_OUTPUT
 			break;
 		}
 		else {
