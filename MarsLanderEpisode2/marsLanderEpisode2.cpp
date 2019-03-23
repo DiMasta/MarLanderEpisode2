@@ -16,9 +16,9 @@
 #include <iterator>
 
 //#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
+#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
+#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -87,9 +87,12 @@ const int LAST_COMMANDS_TO_EDIT = 2;
 const int ADDITIONAL_TURNS = 4;
 const int CHECK_FOR_CRASH_AFTER_GENE = 30;
 
+const unsigned int CRASHED_IDX_MASK = 0b1111'0000'0000'0000'0000'0000'0000'0000;
+const int CRASHED_IDX_MASK_OFFSET = 28;
 const int SELECTED_FLAG = 1;						// 1
 const int SOLUTION_FLAG = 1 << 1;					// 2
 const int CRASHED_ON_LANDING_ZONE_FLAG = 1 << 2;	// 4
+const int CRASHED_FLAG = 1 << 4;					// 8
 
 enum ComponentType {
 	CT_INVALID = -1,
@@ -430,40 +433,36 @@ public:
 		return lines;
 	}
 
-	Line getLandingZone() const {
-		return landingZone;
-	}
-
 	float getMaxDistance() const {
 		return maxDistance;
 	}
 
 	void setLines(const Lines& lines) { this->lines = lines; }
-	void setLandingZone(const Line& landingZone) { this->landingZone = landingZone; }
 	void setMaxDistance(float maxDistance) { this->maxDistance = maxDistance; }
 
 	int getLinesCount() const;
 	Line getLine(int lineIdx) const;
 
-	void collisionWithSurface(
+	/// Check if the given line described with two points crosses with a line from the Mars surface
+	/// @param[in] point0 the first point of the line to check
+	/// @param[in] point1 the second point of the line to check
+	/// @param[out] crashedInLandingArea true if the collision is on the landing area
+	/// @return the index of the crashed in line 
+	int Surface::collisionWithSurface(
 		const Coords& point0,
 		const Coords& point1,
-		Coords& collisionPoint,
-		int& crashLineIdx
+		bool& crashedInLandingArea
 	);
 
 	void addLine(
 		const Coords& point0,
 		const Coords& point1,
+		int lineIdx,
 		int landingZoneDirection,
 		bool& landingZoneFound
 	);
 
 	float findDistanceToLandingZone(const Coords& from, int crashLineIdx) const;
-
-	/// Check if the shuutle has crashed on landing area
-	/// @paramp[in] collisionPoint point where the shuttle crashed
-	bool crashedOnLandingArea(const Coords& collisionPoint) const;
 
 #ifdef SVG
 	string constructSVGData(const SVGManager& svgManager) const;
@@ -471,8 +470,8 @@ public:
 
 private:
 	Lines lines;
-	Line landingZone;
 	float maxDistance;
+	int landingAreaLineIdx;
 };
 
 //*************************************************************************************************************
@@ -480,8 +479,8 @@ private:
 
 Surface::Surface() :
 	lines(),
-	landingZone(),
-	maxDistance(0.f)
+	maxDistance(0.f),
+	landingAreaLineIdx(INVALID_ID)
 {
 
 }
@@ -510,25 +509,26 @@ Line Surface::getLine(int lineIdx) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Surface::collisionWithSurface(
+int Surface::collisionWithSurface(
 	const Coords& point0,
 	const Coords& point1,
-	Coords& collisionPoint,
-	int& crashLineIdx
+	bool& crashedInLandingArea
 ) {
+	int crashLineIdx = INVALID_ID;
+
 	if (point1.getXCoord() >= 0 && point1.getXCoord() <= MAP_WIDTH) {
 		for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
 			const Line& line = lines[lineIdx];
 
-			const Coord p0x = point0.getXCoord();
-			const Coord p0y = point0.getYCoord();
-			const Coord p1x = point1.getXCoord();
-			const Coord p1y = point1.getYCoord();
+			const Coord& p0x = point0.getXCoord();
+			const Coord& p0y = point0.getYCoord();
+			const Coord& p1x = point1.getXCoord();
+			const Coord& p1y = point1.getYCoord();
 
-			const Coord p2x = line.getPoint0().getXCoord();
-			const Coord p2y = line.getPoint0().getYCoord();
-			const Coord p3x = line.getPoint1().getXCoord();
-			const Coord p3y = line.getPoint1().getYCoord();
+			const Coord& p2x = line.getPoint0().getXCoord();
+			const Coord& p2y = line.getPoint0().getYCoord();
+			const Coord& p3x = line.getPoint1().getXCoord();
+			const Coord& p3y = line.getPoint1().getYCoord();
 
 			const Coord s1x = p1x - p0x;
 			const Coord s1y = p1y - p0y;
@@ -540,13 +540,16 @@ void Surface::collisionWithSurface(
 			const Coord t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
 
 			if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
-				collisionPoint.setXCoord(p0x + (t * s1x));
-				collisionPoint.setYCoord(p0y + (t * s1y));
+				//collisionPoint.setXCoord(p0x + (t * s1x));
+				//collisionPoint.setYCoord(p0y + (t * s1y));
 
 				crashLineIdx = static_cast<int>(lineIdx);
 			}
 		}
 	}
+
+	crashedInLandingArea = landingAreaLineIdx == crashLineIdx;
+	return crashLineIdx;
 }
 
 //*************************************************************************************************************
@@ -555,35 +558,19 @@ void Surface::collisionWithSurface(
 void Surface::addLine(
 	const Coords& point0,
 	const Coords& point1,
+	int lineIdx,
 	int landingZoneDirection,
 	bool& landingZoneFound
 ) {
 	Line line(point0, point1, landingZoneDirection);
 
 	if (point0.getYCoord() == point1.getYCoord()) {
-		landingZone = line;
 		landingZoneFound = true;
+		landingAreaLineIdx = lineIdx;
 		line.setLandingZoneDirection(LZD_HERE);
 	}
 
 	lines.push_back(line);
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-bool Surface::crashedOnLandingArea(const Coords& collisionPoint) const {
-	const Coord x = collisionPoint.getXCoord();
-	const Coord y = collisionPoint.getYCoord();
-
-	const Coord landingLeftX = landingZone.getPoint0().getXCoord();
-	const Coord landingRightX = landingZone.getPoint1().getXCoord();
-	const Coord landingY = landingZone.getPoint1().getYCoord();
-
-	const bool inLandingXZone = (landingLeftX <= x) && (x <= landingRightX);
-	const bool inLandingYZone = (landingY - 25.f <= y) && (y <= landingY + 25.f);
-
-	return inLandingXZone && inLandingYZone;
 }
 
 //*************************************************************************************************************
@@ -636,6 +623,7 @@ float Surface::findDistanceToLandingZone(const Coords& from, int crashLineIdx) c
 	if (INVALID_ID != crashLineIdx) {
 		const Line& crashedLine = lines[crashLineIdx];
 
+		// This check could be removed, because I think it is sure that the crash is not on landing zone
 		if (crashedLine.getLandingZoneDirection() != LZD_HERE) {
 			Coords pointToLandingZone = crashedLine.getPoint0();
 			if (LZD_RIGHT == crashedLine.getLandingZoneDirection()) {
@@ -736,7 +724,6 @@ public:
 
 	void simulate(int rotateAngle, int thrustPower);
 	void print() const;
-	bool goodForLanding(const Line& landingZone) const;
 	void getTitleLines(vector<string>& titleLines) const;
 
 private:
@@ -868,36 +855,6 @@ void Shuttle::print() const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool Shuttle::goodForLanding(const Line& landingZone) const {
-	bool res = false;
-
-	Coord shuttleX = position.getXCoord();
-	Coord shuttleY = position.getYCoord();
-
-	Coord landingZoneX0 = landingZone.getPoint0().getXCoord();
-	Coord landingZoneX1 = landingZone.getPoint1().getXCoord();
-	Coord landingZoneY = landingZone.getPoint0().getYCoord();
-
-	int hSpeedRounded = abs(static_cast<int>(round(hSpeed)));
-	int vSpeedRounded = abs(static_cast<int>(round(vSpeed)));
-
-	if (shuttleX > landingZoneX0 && shuttleX < landingZoneX1) {
-		Coord distToLandingZone = shuttleY - landingZoneY;
-		if (distToLandingZone < SAVE_DISTANCE_TO_LANDING_ZONE) {
-			if (rotate >= MIN_ROTATION_ANGLE_STEP && rotate <= MAX_ROTATION_ANGLE_STEP) {
-				if ((hSpeedRounded <= MAX_H_SPEED_FOR_LANDING) && (vSpeedRounded <= MAX_V_SPEED_FOR_LANDING)) {
-					res = true;
-				}
-			}
-		}
-	}
-
-	return res;
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
 void Shuttle::getTitleLines(vector<string>& titleLines) const {
 	titleLines.clear();
 
@@ -1023,6 +980,8 @@ public:
 	void unsetFlag(int flag);
 	bool hasFlag(int flag) const;
 	void resetFlags();
+	void addCrashLineIdxToFlags(int crashedLineIdx);
+	int getCrashedLineIdx() const;
 
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
@@ -1033,6 +992,8 @@ public:
 	void simulate(Surface* surface, bool& goodForLanding);
 	void mutate();
 	bool isValid();
+
+	bool checkIfGoodForLanding(const Shuttle& previousShuttle, const Shuttle& shuttle) const;
 
 #ifdef SVG
 	Path getPath() const {
@@ -1117,6 +1078,24 @@ bool Chromosome::hasFlag(int flag) const {
 
 void Chromosome::resetFlags() {
 	flags = 0;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::addCrashLineIdxToFlags(int crashedLineIdx) {
+	crashedLineIdx <<= CRASHED_IDX_MASK_OFFSET;
+	flags |= crashedLineIdx;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+int Chromosome::getCrashedLineIdx() const {
+	int crashedLIneIdx = flags & CRASHED_IDX_MASK;
+	crashedLIneIdx >>= CRASHED_IDX_MASK_OFFSET;
+
+	return crashedLIneIdx;
 }
 
 //*************************************************************************************************************
@@ -1245,7 +1224,7 @@ void Chromosome::evaluate(Surface* surface) {
 
 	if (!hasFlag(CRASHED_ON_LANDING_ZONE_FLAG)) {
 		// 0-100: crashed somewhere, calculate score by distance to landing area
-		const float distance = surface->findDistanceToLandingZone(shuttle.getPosition(), crashLineIdx);
+		const float distance = surface->findDistanceToLandingZone(shuttle.getPosition(), getCrashedLineIdx());
 
 		// Calculate score from distance
 		evaluation = 100.f - (100.f * distance / MAX_DISTANCE);
@@ -1317,29 +1296,27 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 #endif // SVG
 
 		if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
-			//if (shuttle.goodForLanding(surface->getLandingZone())) {
-			//	chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
-			//	goodForLanding = true;
-			//	break;
-			//}
+			bool crashedInLandingArea = false;
+			const int crashedLineIdx = surface->collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 
-			surface->collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), collisionPoint, crashOnLandingZone);
+			if (INVALID_ID != crashedLineIdx) {
+				setFlag(CRASHED_FLAG);
+				addCrashLineIdxToFlags(crashedLineIdx);
 
-			if (collisionPoint.isValid()) {
-				// If the collision is on the landing zone
-				// Check previous simulation stats
-				// If before the collision and after the collision the speed is in range, good for landing
+				if (crashedInLandingArea) {
+					setFlag(CRASHED_ON_LANDING_ZONE_FLAG);
 
-#ifdef SVG
-				path[path.size() - 1] = collisionPoint;
-#endif // SVG
+					goodForLanding = checkIfGoodForLanding(previousShuttle, shuttle);
+					if (goodForLanding) {
+						chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
+					}
+				}
+
 				break;
 			}
-
-			previousShuttle = shuttle;
 		}
 
-		
+		previousShuttle = shuttle;
 	}
 }
 
@@ -1374,6 +1351,23 @@ void Chromosome::mutate() {
 
 bool Chromosome::isValid() {
 	return chromosome.size() > 0;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Chromosome::checkIfGoodForLanding(const Shuttle& shuttleBeforeCrash, const Shuttle& shuttleAfterCrash) const {
+	// If this function is called that means the crash is landing are
+
+	const bool hSpeedBeforeCrashGood = abs(shuttleBeforeCrash.getHSpeed()) < MAX_H_ABS_SPEED;
+	const bool vSpeedBeforeCrashGood = abs(shuttleBeforeCrash.getVSpeed()) < MAX_V_ABS_SPEED;
+	const bool rotateBeforeCrashGood = abs(shuttleBeforeCrash.getRotate()) < MAX_ROTATION_ANGLE_STEP;
+
+	// After the crash only the speed is important 
+	const bool hSpeedAfterCrashGood = abs(shuttleAfterCrash.getHSpeed()) < MAX_H_ABS_SPEED;
+	const bool vSpeedAfterCrashGood = abs(shuttleAfterCrash.getVSpeed()) < MAX_V_ABS_SPEED;
+
+	return hSpeedBeforeCrashGood && vSpeedBeforeCrashGood && rotateBeforeCrashGood && hSpeedAfterCrashGood && vSpeedAfterCrashGood;
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1522,7 +1516,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, int& solutionChromIdx) {
 		Chromosome& chromosome = population[chromIdx];
 
 		// TODO: Better way to check for parent
-		if (chromosome.getCollisionPoint().isValid()) {
+		if (chromosome.hasFlag(CRASHED_FLAG)) {
 			// Directly transfered parent
 			chromosome.evaluate(&surface); // Reset evaluation, because it was modified to fit the roullete wheel
 			continue;
@@ -1925,7 +1919,7 @@ void Game::getGameInput() {
 				*distToLandingZone += distance(point0, point1);
 			}
 
-			surface->addLine(point0, point1, landingZoneDirection, landingZoneFound);
+			surface->addLine(point0, point1, i, landingZoneDirection, landingZoneFound);
 		}
 
 		point0 = point1;
