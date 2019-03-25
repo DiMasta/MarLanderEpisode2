@@ -1309,7 +1309,15 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 					goodForLanding = checkIfGoodForLanding(previousShuttle, shuttle);
 					if (goodForLanding) {
 						// Minus 1 to ignore the gene which is after the crash
-						chromosome.erase(chromosome.begin() + geneIdx - 1, chromosome.end());
+						chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
+
+#ifdef SIMULATION_OUTPUT
+						for (size_t coordsIdx = 0; coordsIdx < path.size(); ++coordsIdx) {
+							cout << '(' << path[coordsIdx].getXCoord() << ',' << path[coordsIdx].getYCoord() << "),";
+							if (0 == coordsIdx % 10) { cout << endl; }
+						}
+						cout << endl;
+#endif // SIMULATION_OUTPUT
 					}
 				}
 
@@ -1947,12 +1955,6 @@ void Game::getGameInput() {
 //*************************************************************************************************************
 
 void Game::getTurnInput() {
-	// Get data for the shuttle only once, because everything from the genetic algorithm will be applied on top of the initial shuttle
-	// And there may be differences from the online platform if I use each new position
-	if (turnsCount > 0) {
-		return;
-	}
-
 	int X;
 	int Y;
 	int hSpeed; // the horizontal speed (in m/s), can be negative.
@@ -1968,13 +1970,17 @@ void Game::getTurnInput() {
 		cerr << fuel << " " << rotate << " " << power << endl;
 #endif // OUTPUT_GAME_DATA
 
-	shuttle->setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
-	shuttle->setHSpeed(static_cast<float>(hSpeed));
-	shuttle->setVSpeed(static_cast<float>(vSpeed));
-	shuttle->setFuel(fuel);
-	shuttle->setInitialFuel(fuel);
-	shuttle->setRotate(rotate);
-	shuttle->setPower(power);
+	// Get data for the shuttle only once, because everything from the genetic algorithm will be applied on top of the initial shuttle
+	// And there may be differences from the online platform if I use each new position
+	if (0 == turnsCount) {
+		shuttle->setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
+		shuttle->setHSpeed(static_cast<float>(hSpeed));
+		shuttle->setVSpeed(static_cast<float>(vSpeed));
+		shuttle->setFuel(fuel);
+		shuttle->setInitialFuel(fuel);
+		shuttle->setRotate(rotate);
+		shuttle->setPower(power);
+	}
 }
 
 //*************************************************************************************************************
