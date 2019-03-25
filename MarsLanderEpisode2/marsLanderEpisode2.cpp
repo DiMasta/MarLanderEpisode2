@@ -15,10 +15,10 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
+//#define SVG
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -448,7 +448,7 @@ public:
 	/// @param[in] point1 the second point of the line to check
 	/// @param[out] crashedInLandingArea true if the collision is on the landing area
 	/// @return the index of the crashed in line 
-	int Surface::collisionWithSurface(
+	int collisionWithSurface(
 		const Coords& point0,
 		const Coords& point1,
 		bool& crashedInLandingArea
@@ -1308,16 +1308,16 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 
 					goodForLanding = checkIfGoodForLanding(previousShuttle, shuttle);
 					if (goodForLanding) {
-						// Minus 1 to ignore the gene which is after the crash
+						// Ignore the gene which is after the crash
 						chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
 
-#ifdef SIMULATION_OUTPUT
+#ifdef SVG
 						for (size_t coordsIdx = 0; coordsIdx < path.size(); ++coordsIdx) {
 							cout << '(' << path[coordsIdx].getXCoord() << ',' << path[coordsIdx].getYCoord() << "),";
 							if (0 == coordsIdx % 10) { cout << endl; }
 						}
 						cout << endl;
-#endif // SIMULATION_OUTPUT
+#endif // SVG
 					}
 				}
 
@@ -1674,9 +1674,10 @@ void GeneticPopulation::makeChildren(Chromosomes& children) {
 
 		selectParentsIdxs(parent0Idx, parent1Idx);
 
-		// Debug
+#ifdef SVG
 		population[parent0Idx].setFlag(SELECTED_FLAG);
 		population[parent1Idx].setFlag(SELECTED_FLAG);
+#endif // SVG
 
 		// Maybe here a check if a valid pair of parents indecies is selected
 		crossover(parent0Idx, parent1Idx, children);
