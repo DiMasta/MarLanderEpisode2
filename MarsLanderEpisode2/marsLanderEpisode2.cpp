@@ -15,7 +15,7 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
+#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
@@ -83,9 +83,9 @@ const int MIN_POWER_STEP = -1;
 const int MAX_POWER_STEP = 1;
 const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
-const int LAST_COMMANDS_TO_EDIT = 2;
+const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
-const int CHECK_FOR_CRASH_AFTER_GENE = 30;
+const int CHECK_FOR_CRASH_AFTER_GENE = 20;
 
 const unsigned int CRASHED_IDX_MASK = 0b1111'0000'0000'0000'0000'0000'0000'0000;
 const int CRASHED_IDX_MASK_OFFSET = 28;
@@ -1247,9 +1247,9 @@ void Chromosome::evaluate(Surface* surface) {
 		}
 
 		float rotationPen = 0.f;
-		if (abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
-			rotationPen = (abs(rotation) - MAX_ROTATION_ANGLE_STEP) / 2.f;
-		}
+		//if (abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
+		//	rotationPen = (abs(rotation) - MAX_ROTATION_ANGLE_STEP) / 2.f;
+		//}
 
 		evaluation = 200.f - xPen - yPen - rotationPen;
 	}
@@ -1308,7 +1308,8 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 
 					goodForLanding = checkIfGoodForLanding(previousShuttle, shuttle);
 					if (goodForLanding) {
-						chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
+						// Minus 1 to ignore the gene which is after the crash
+						chromosome.erase(chromosome.begin() + geneIdx - 1, chromosome.end());
 					}
 				}
 
@@ -1540,6 +1541,14 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, int& solutionChromIdx) {
 //*************************************************************************************************************
 
 void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
+#ifdef SVG
+	if (2 == population.size()) {
+		parent0Idx = 0;
+		parent1Idx = 1;
+
+		return;
+	}
+#endif // SVG
 	float r = Math::randomFloatBetween0and1();
 	r += CORRECT_THE_RANDOM_FOR_SELECTION;
 
@@ -1919,7 +1928,8 @@ void Game::getGameInput() {
 				*distToLandingZone += distance(point0, point1);
 			}
 
-			surface->addLine(point0, point1, i, landingZoneDirection, landingZoneFound);
+			// Line index is - 1, because the second point is ith index
+			surface->addLine(point0, point1, i - 1, landingZoneDirection, landingZoneFound);
 		}
 
 		point0 = point1;
@@ -2008,6 +2018,12 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn(bool& notDone) {
+#ifdef SVG
+	if (INVALID_ID == solutionChromIdx) {
+		return;
+	}
+#endif // SVG
+
 	const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionChromIdx);
 	const Genes& solutionGenes = solutionChromosome.getGenesRef();
 	const int genesCount = static_cast<int>(solutionGenes.size());
@@ -2017,14 +2033,16 @@ void Game::makeTurn(bool& notDone) {
 	separator = ',';
 #endif // SIMULATION_OUTPUT
 
-	if (turnsCount < (genesCount - LAST_COMMANDS_TO_EDIT)) {
+	if (turnsCount < genesCount) {
 		shuttle->applyNewRotateAngle(solutionGenes[turnsCount].rotate);
 		shuttle->applyNewPower(solutionGenes[turnsCount].power);
 
-		cout << shuttle->getRotate() << separator << shuttle->getPower() << endl;
-	}
-	else if (turnsCount < genesCount) {
-		cout << 0 << separator << MAX_POWER << endl;
+		int rotate = shuttle->getRotate();
+		//if (LAST_COMMANDS_TO_EDIT == genesCount - turnsCount) {
+		//	rotate = 0;
+		//}
+
+		cout << rotate << separator << shuttle->getPower() << endl;
 	}
 	else {
 		cout << 0 << separator << 0 << endl;
