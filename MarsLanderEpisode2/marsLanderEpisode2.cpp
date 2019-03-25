@@ -85,10 +85,10 @@ const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
 const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
-const int CHECK_FOR_CRASH_AFTER_GENE = 20;
+const int CHECK_FOR_CRASH_AFTER_GENE = 10;
 
-const unsigned int CRASHED_IDX_MASK = 0b1111'0000'0000'0000'0000'0000'0000'0000;
-const int CRASHED_IDX_MASK_OFFSET = 28;
+const unsigned int CRASHED_IDX_MASK = 0b1111'1000'0000'0000'0000'0000'0000'0000;
+const int CRASHED_IDX_MASK_OFFSET = 27;
 const int SELECTED_FLAG = 1;						// 1
 const int SOLUTION_FLAG = 1 << 1;					// 2
 const int CRASHED_ON_LANDING_ZONE_FLAG = 1 << 2;	// 4
@@ -1092,10 +1092,10 @@ void Chromosome::addCrashLineIdxToFlags(int crashedLineIdx) {
 //*************************************************************************************************************
 
 int Chromosome::getCrashedLineIdx() const {
-	int crashedLIneIdx = flags & CRASHED_IDX_MASK;
+	unsigned int crashedLIneIdx = flags & CRASHED_IDX_MASK;
 	crashedLIneIdx >>= CRASHED_IDX_MASK_OFFSET;
 
-	return crashedLIneIdx;
+	return static_cast<int>(crashedLIneIdx);
 }
 
 //*************************************************************************************************************
@@ -1295,7 +1295,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 		path.push_back(shuttle.getPosition());
 #endif // SVG
 
-		if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
+		if (geneIdx > 0) {
 			bool crashedInLandingArea = false;
 			const int crashedLineIdx = surface->collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 
@@ -1809,6 +1809,7 @@ public:
 	void debug() const;
 
 private:
+	int lastPower; /// The power from previous turn
 	int turnsCount;
 
 	Shuttle* shuttle;
@@ -1829,6 +1830,7 @@ private:
 //*************************************************************************************************************
 
 Game::Game() :
+	lastPower(0),
 	turnsCount(0),
 	shuttle(NULL),
 	surface(NULL),
@@ -2026,6 +2028,7 @@ void Game::turnBegin() {
 void Game::makeTurn(bool& notDone) {
 #ifdef SVG
 	if (INVALID_ID == solutionChromIdx) {
+		notDone = false;
 		return;
 	}
 #endif // SVG
@@ -2043,12 +2046,11 @@ void Game::makeTurn(bool& notDone) {
 		shuttle->applyNewRotateAngle(solutionGenes[turnsCount].rotate);
 		shuttle->applyNewPower(solutionGenes[turnsCount].power);
 
-		int rotate = shuttle->getRotate();
-		//if (LAST_COMMANDS_TO_EDIT == genesCount - turnsCount) {
-		//	rotate = 0;
-		//}
-
-		cout << rotate << separator << shuttle->getPower() << endl;
+		lastPower = shuttle->getPower();
+		cout << shuttle->getRotate() << separator << lastPower << endl;
+	}
+	else if (turnsCount == genesCount) {
+		cout << 0 << separator << lastPower << endl;
 	}
 	else {
 		cout << 0 << separator << 0 << endl;
