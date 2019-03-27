@@ -16,8 +16,8 @@
 #include <iterator>
 
 //#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
+#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
 //#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
