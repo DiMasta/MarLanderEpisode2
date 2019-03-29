@@ -15,7 +15,7 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
+//#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
@@ -64,7 +64,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 1000;//250;
+const int MAX_POPULATION = 300;//250;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
@@ -950,7 +950,6 @@ void Gene::clamp() {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-typedef vector<Gene> Genes;
 typedef vector<Coords> Path;
 
 class Chromosome {
@@ -966,20 +965,16 @@ public:
 		return evaluation;
 	}
 
-	Genes getChromosome() const {
-		return chromosome;
-	}
-
-	const Genes& getGenesRef() const {
-		return chromosome;
-	}
-
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
-	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 
 	/// Reserve memory needed for the gene array of the Chromosome
-	void init();
+	/// Set the initial state of the shuttle
+	void init(const Shuttle& shuttle);
+
+	/// Main thing to reset is the shuttle used for simulation to the initial state
+	/// Other think as genes will be overwritten as they are calculated
+	void reset();
 
 	void setFlag(int flag);
 	void unsetFlag(int flag);
@@ -1016,10 +1011,12 @@ public:
 #endif // SVG
 
 private:
-	Shuttle shuttle;
+	Shuttle initialShuttle; /// Shuttle form the beginnging of the turn
+	Shuttle shuttle; /// Shuttle used for simulation
+
 	float evaluation; /// Maybe I could work with integer evaluation !? experiment
 
-	Genes chromosome;
+	Gene chromosome[CHROMOSOME_SIZE];
 
 	unsigned int flags; /// Stored chromosome properties
 
@@ -1043,14 +1040,12 @@ Chromosome::Chromosome() :
 	path()
 #endif // SVG
 {
-	init();
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 Chromosome::~Chromosome() {
-	chromosome.shrink_to_fit();
 
 #ifdef SVG
 	path.clear();
@@ -1060,8 +1055,17 @@ Chromosome::~Chromosome() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::init() {
-	chromosome.reserve(CHROMOSOME_SIZE);
+void Chromosome::init(const Shuttle& shuttle) {
+	initialShuttle = shuttle;
+	this->shuttle = initialShuttle; // May be not nice code
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::reset() {
+	resetFlags();
+	shuttle = initialShuttle;
 }
 
 void Chromosome::setFlag(int flag) {
@@ -1118,21 +1122,21 @@ bool Chromosome::operator<(const Chromosome& chromosome) const {
 //*************************************************************************************************************
 
 Chromosome& Chromosome::operator=(const Chromosome& other) {
-	if (this != &other) {
-		chromosome.shrink_to_fit();
-
-		shuttle = other.shuttle;
-		evaluation = other.evaluation;
-		chromosome = other.chromosome;
-		flags = other.flags;
-
-#ifdef SVG
-		path.clear();
-		originalEvaluation = other.originalEvaluation;
-		path = other.path;
-#endif // SVG
-	}
-	return *this;
+//		if (this != &other) {
+//			chromosome.shrink_to_fit();
+//	
+//			shuttle = other.shuttle;
+//			evaluation = other.evaluation;
+//			chromosome = other.chromosome;
+//			flags = other.flags;
+//	
+//	#ifdef SVG
+//			path.clear();
+//			originalEvaluation = other.originalEvaluation;
+//			path = other.path;
+//	#endif // SVG
+//		}
+		return *this;
 }
 
 //*************************************************************************************************************
@@ -1277,7 +1281,7 @@ float Chromosome::evaluate(Surface* surface) {
 //*************************************************************************************************************
 
 void Chromosome::addGene(const Gene& gene) {
-	chromosome.emplace_back(gene);
+	// chromosome.emplace_back(gene);
 }
 
 //*************************************************************************************************************
@@ -1298,7 +1302,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 	// Use the last postion for shuttle to define a line and check if it crosses a surface line
 	Shuttle previousShuttle;
 
-	for (size_t geneIdx = 0; geneIdx < chromosome.size(); ++geneIdx) {
+	for (size_t geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 		const Gene& gene = chromosome[geneIdx];
 		shuttle.simulate(gene.rotate, gene.power);
 
@@ -1320,7 +1324,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 					goodForLanding = checkIfGoodForLanding(previousShuttle, shuttle);
 					if (goodForLanding) {
 						// Ignore the gene which is after the crash
-						chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
+						//chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
 
 #ifdef SVG
 						for (size_t coordsIdx = 0; coordsIdx < path.size(); ++coordsIdx) {
@@ -1370,7 +1374,8 @@ void Chromosome::mutate() {
 //*************************************************************************************************************
 
 bool Chromosome::isValid() {
-	return chromosome.size() > 0;
+	// return chromosome.size() > 0;
+	return true;
 }
 
 //*************************************************************************************************************
@@ -1395,16 +1400,10 @@ bool Chromosome::checkIfGoodForLanding(const Shuttle& shuttleBeforeCrash, const 
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-typedef vector<Chromosome> Chromosomes;
-
 class GeneticPopulation {
 public:
 	GeneticPopulation();
 	~GeneticPopulation();
-
-	Chromosomes getPopulation() const {
-		return population;
-	}
 
 	Surface getSurface() const {
 		return surface;
@@ -1419,7 +1418,19 @@ public:
 	}
 
 	void setSurface(const Surface& surface) { this->surface = surface; }
-	void setChromosomes(const Chromosomes& population) { this->population = population; }
+	void setChromosomes(Chromosome* population) { this->population = population; }
+
+	/// Reserve memory for 2 populations
+	/// All chromosomes for all populations will use one indentical initial shuttle and modified it when simulating it
+	/// so the shuttle will be set only once for all chromosomes and only will be reset when done with somilation
+	/// @param[in] the initial shuttle for the game
+	void init(const Shuttle& shuttle);
+
+	/// Inserts directly in the active population with [] operator, no pushin or emplacing
+	/// @param[in] the chromosome index where to insert
+	/// @param[in] the chromosome's gene index which will be overwritten
+	/// @paeam[in] gene the gene to insert
+	void insertGene(int chromIdx, int geneIdx, const Gene& gene);
 
 	/// Use the Continuos Genetic Algorithm methods to make the new generation TODO: maybe not needed
 	/// @param[in/out] svgManager used to make the visual debugging
@@ -1438,29 +1449,29 @@ public:
 	/// @param[out] parent1Idx the second parent's index, which will be used for the crossover
 	void selectParentsIdxs(int& parent0Idx, int& parent1Idx);
 
-	/// Crossover pair of chromosomes to make new pair and add them to the new children
-	/// @param[in] parent0Idx the first parent's index, which will be used for the crossover
-	/// @param[in] parent1Idx the second parent's index, which will be used for the crossover
-	/// @param[out] children the new population of chromosomes in which the new created children will be added
-	void crossover(int parent0Idx, int parent1Idx, Chromosomes& children);
-
-	/// Mutate the last two chromosomes in the children array, they are the new from the crossover
-	/// @param[in/out] children the new children created from the crossover
-	void mutate(Chromosomes& children);
-
-	/// Get the best chromosomes from the current population and pass them unchanged to the next
-	/// @param[in] population the current population
-	/// @param[out] the new generation
-	void elitsm(const Chromosomes& population, Chromosomes& children);
-
-	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
-	/// @param[out] children the new generation children
-	void makeChildren(Chromosomes& children);
+	//	/// Crossover pair of chromosomes to make new pair and add them to the new children
+	//	/// @param[in] parent0Idx the first parent's index, which will be used for the crossover
+	//	/// @param[in] parent1Idx the second parent's index, which will be used for the crossover
+	//	/// @param[out] children the new population of chromosomes in which the new created children will be added
+	//	void crossover(int parent0Idx, int parent1Idx, Chromosomes& children);
+	//	
+	//	/// Mutate the last two chromosomes in the children array, they are the new from the crossover
+	//	/// @param[in/out] children the new children created from the crossover
+	//	void mutate(Chromosomes& children);
+	//	
+	//	/// Get the best chromosomes from the current population and pass them unchanged to the next
+	//	/// @param[in] population the current population
+	//	/// @param[out] the new generation
+	//	void elitsm(const Chromosomes& population, Chromosomes& children);
+	//	
+	//	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
+	//	/// @param[out] children the new generation children
+	//	void makeChildren(Chromosomes& children);
 
 	/// Simulate all Chromosomes, using the commands from each gene to move the given shuttle
 	/// @param[in] shuttle the shuttle, for which the simulation is done TODO: do not use pointer
 	/// @param[out] solutionChromIdx the solution chromosome index
-	bool simulate(Shuttle* shuttle, int& solutionChromIdx);
+	bool simulate(const Shuttle& shuttle, int& solutionChromIdx);
 
 	/// Prepare the population for the roullete wheel selection:
 	///		- calc the sum of evaluations
@@ -1485,7 +1496,12 @@ public:
 #endif // SVG
 
 private:
-	Chromosomes population;
+	/// Will change the content in A when B is active and vise versa
+	Chromosome populationA[POPULATION_SIZE];
+	Chromosome populationB[POPULATION_SIZE];
+
+	/// Points to active population
+	Chromosome* population;
 	Surface surface;
 
 	int populationId; /// For visual debug purposes
@@ -1514,9 +1530,7 @@ void GeneticPopulation::initRandomPopulation() {
 	int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
 	int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
 
-	population.reserve(POPULATION_SIZE);
-	for (size_t chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
-		Chromosome chromosome;
+	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 
 			int randAngle = rand() % maxAngleRand;
@@ -1526,19 +1540,20 @@ void GeneticPopulation::initRandomPopulation() {
 			randPower += MIN_POWER_STEP;
 
 			Gene gene(randAngle, randPower);
-			chromosome.addGene(gene);
+			insertGene(chromIdx, geneIdx, gene);
+			//chromosome.addGene(gene);
 		}
-		population.emplace_back(chromosome);
+		//population->emplace_back(chromosome);
 	}
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool GeneticPopulation::simulate(Shuttle* shuttle, int& solutionChromIdx) {
+bool GeneticPopulation::simulate(const Shuttle& shuttle, int& solutionChromIdx) {
 	bool foundResChromosome = false;
 
-	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
+	for (size_t chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		Chromosome& chromosome = population[chromIdx];
 
 		// TODO: Better way to check for parent
@@ -1548,7 +1563,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, int& solutionChromIdx) {
 			continue;
 		}
 
-		chromosome.setShuttle(*shuttle);
+		chromosome.setShuttle(shuttle);
 		chromosome.simulate(&surface, foundResChromosome);
 
 		if (foundResChromosome) {
@@ -1577,9 +1592,8 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 	float r = Math::randomFloatBetween0and1();
 	r += CORRECT_THE_RANDOM_FOR_SELECTION;
 
-	const int populationSize = static_cast<int>(population.size());
-	parent0Idx = populationSize - 1; // If r is too small, the comparison won't pass, so use the last chromosome
-	for (int chromIdx = 1; chromIdx < populationSize; ++chromIdx) {
+	parent0Idx = POPULATION_SIZE - 1; // If r is too small, the comparison won't pass, so use the last chromosome
+	for (int chromIdx = 1; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		if (r > population[chromIdx].getEvaluation()) {
 			parent0Idx = chromIdx - 1;
 			break;
@@ -1593,7 +1607,7 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 		r += CORRECT_THE_RANDOM_FOR_SELECTION;
 
 		// Code duplication, at the moment I cannot think of more elegant layout
-		for (int chromIdx = 1; chromIdx < populationSize; ++chromIdx) {
+		for (int chromIdx = 1; chromIdx < POPULATION_SIZE; ++chromIdx) {
 			if (r > population[chromIdx].getEvaluation()) {
 				parent1Idx = chromIdx - 1;
 				break;
@@ -1602,134 +1616,154 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 	}
 }
 
+//	/*************************************************************************************************************
+//	/*************************************************************************************************************
+//	
+//	oid GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& children) {
+//		const Chromosome& parent0 = population->at(parent0Idx);
+//		const Chromosome& parent1 = population->at(parent1Idx);
+//	
+//		Chromosome child0;
+//		Chromosome child1;
+//	
+//		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+//			const float beta = Math::randomFloatBetween0and1();
+//			const float parent0Rotate = static_cast<float>(parent0.getGene(geneIdx).rotate);
+//			const float parent1Rotate = static_cast<float>(parent1.getGene(geneIdx).rotate);
+//			const float parent0Power = static_cast<float>(parent0.getGene(geneIdx).power);
+//			const float parent1Power = static_cast<float>(parent1.getGene(geneIdx).power);
+//	
+//			float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
+//			float child1Rotation = ((1.f - beta) * parent0Rotate) + (beta * parent1Rotate);
+//			float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
+//			float child1Power = ((1.f - beta) * parent0Power) + (beta * parent1Power);
+//	
+//			Gene child0Gene;
+//			child0Gene.rotate = static_cast<int>(round(child0Rotation));
+//			child0Gene.power = static_cast<int>(round(child0Power));
+//	
+//			Gene child1Gene;
+//			child1Gene.rotate = static_cast<int>(round(child1Rotation));
+//			child1Gene.power = static_cast<int>(round(child1Power));
+//	
+//			child0.addGene(child0Gene);
+//			child1.addGene(child1Gene);
+//		}
+//	
+//		float r = Math::randomFloatBetween0and1();
+//		if (r <= PROBABILITY_OF_CROSSOVER) {
+//			children.push_back(child0);
+//		}
+//		else {
+//			children.push_back(parent0);
+//		}
+//	
+//		r = Math::randomFloatBetween0and1();
+//		if (r <= PROBABILITY_OF_CROSSOVER) {
+//			children.push_back(child1);
+//		}
+//		else {
+//			children.push_back(parent1);
+//		}
+//	
+//	
+//	/*************************************************************************************************************
+//	/*************************************************************************************************************
+//	
+//	oid GeneticPopulation::mutate(Chromosomes& children) {
+//		const int childrenSize = static_cast<int>(children.size());
+//		// Mutate last two chromosomes
+//		for (int chromIdx = 0; chromIdx < 2; ++chromIdx) {
+//			Chromosome& chrom = children[childrenSize - chromIdx - 1];
+//			chrom.mutate();
+//		}
+//	
+//	
+//	/*************************************************************************************************************
+//	/*************************************************************************************************************
+//	
+//	oid GeneticPopulation::elitsm(const Chromosomes& population, Chromosomes& children) {
+//		const int elitsCount = static_cast<int>(round(static_cast<float>(population.size()) * ELITISM_RATIO));
+//	
+//		// Chromosomes are sorted in descending order so the best elits are in the begining of the population
+//		for (int elitIdx = 0; elitIdx < elitsCount; ++elitIdx) {
+//			children[elitIdx] = population[elitIdx];
+//		}
+//	
+//	
+//	/*************************************************************************************************************
+//	/*************************************************************************************************************
+//	
+//	oid GeneticPopulation::makeChildren(Chromosomes& children) {
+//		// While the new population is not completly filled
+//		// select a pair of parents
+//		// crossover those parents using the Continuos Genetic Algorithm technique
+//		// mutate them using the Continuos Genetic Algorithm technique
+//		while (children.size() < CHILDREN_COUNT) {
+//			int parent0Idx = INVALID_ID; // For safety reasons
+//			int parent1Idx = INVALID_ID; // For safety reasons
+//	
+//			selectParentsIdxs(parent0Idx, parent1Idx);
+//	
+//	ifdef SVG
+//			population[parent0Idx].setFlag(SELECTED_FLAG);
+//			population[parent1Idx].setFlag(SELECTED_FLAG);
+//	endif // SVG
+//	
+//			// Maybe here a check if a valid pair of parents indecies is selected
+//			crossover(parent0Idx, parent1Idx, children);
+//	
+//			mutate(children);
+//		}
+//	
+
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& children) {
-	const Chromosome& parent0 = population[parent0Idx];
-	const Chromosome& parent1 = population[parent1Idx];
-
-	Chromosome child0;
-	Chromosome child1;
-
-	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-		const float beta = Math::randomFloatBetween0and1();
-		const float parent0Rotate = static_cast<float>(parent0.getGene(geneIdx).rotate);
-		const float parent1Rotate = static_cast<float>(parent1.getGene(geneIdx).rotate);
-		const float parent0Power = static_cast<float>(parent0.getGene(geneIdx).power);
-		const float parent1Power = static_cast<float>(parent1.getGene(geneIdx).power);
-
-		float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
-		float child1Rotation = ((1.f - beta) * parent0Rotate) + (beta * parent1Rotate);
-		float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
-		float child1Power = ((1.f - beta) * parent0Power) + (beta * parent1Power);
-
-		Gene child0Gene;
-		child0Gene.rotate = static_cast<int>(round(child0Rotation));
-		child0Gene.power = static_cast<int>(round(child0Power));
-
-		Gene child1Gene;
-		child1Gene.rotate = static_cast<int>(round(child1Rotation));
-		child1Gene.power = static_cast<int>(round(child1Power));
-
-		child0.addGene(child0Gene);
-		child1.addGene(child1Gene);
+void GeneticPopulation::init(const Shuttle& shuttle) {
+	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+		populationA[chromIdx].init(shuttle);
+		populationB[chromIdx].init(shuttle);
 	}
 
-	float r = Math::randomFloatBetween0and1();
-	if (r <= PROBABILITY_OF_CROSSOVER) {
-		children.push_back(child0);
-	}
-	else {
-		children.push_back(parent0);
-	}
-
-	r = Math::randomFloatBetween0and1();
-	if (r <= PROBABILITY_OF_CROSSOVER) {
-		children.push_back(child1);
-	}
-	else {
-		children.push_back(parent1);
-	}
+	// A strats as active population, for it random population will be made
+	population = populationA;
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void GeneticPopulation::mutate(Chromosomes& children) {
-	const int childrenSize = static_cast<int>(children.size());
-	// Mutate last two chromosomes
-	for (int chromIdx = 0; chromIdx < 2; ++chromIdx) {
-		Chromosome& chrom = children[childrenSize - chromIdx - 1];
-		chrom.mutate();
-	}
+void GeneticPopulation::insertGene(int chromIdx, int geneIdx, const Gene& gene) {
+
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
-
-void GeneticPopulation::elitsm(const Chromosomes& population, Chromosomes& children) {
-	const int elitsCount = static_cast<int>(round(static_cast<float>(population.size()) * ELITISM_RATIO));
-
-	// Chromosomes are sorted in descending order so the best elits are in the begining of the population
-	for (int elitIdx = 0; elitIdx < elitsCount; ++elitIdx) {
-		children[elitIdx] = population[elitIdx];
-	}
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-void GeneticPopulation::makeChildren(Chromosomes& children) {
-	// While the new population is not completly filled
-	// select a pair of parents
-	// crossover those parents using the Continuos Genetic Algorithm technique
-	// mutate them using the Continuos Genetic Algorithm technique
-	while (children.size() < CHILDREN_COUNT) {
-		int parent0Idx = INVALID_ID; // For safety reasons
-		int parent1Idx = INVALID_ID; // For safety reasons
-
-		selectParentsIdxs(parent0Idx, parent1Idx);
-
-#ifdef SVG
-		population[parent0Idx].setFlag(SELECTED_FLAG);
-		population[parent1Idx].setFlag(SELECTED_FLAG);
-#endif // SVG
-
-		// Maybe here a check if a valid pair of parents indecies is selected
-		crossover(parent0Idx, parent1Idx, children);
-
-		mutate(children);
-	}
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
 
 void GeneticPopulation::makeNextGeneration(
-#ifdef SVG
-	SVGManager& svgManager
-#endif // SVG
-) {
-	prepareForRoulleteWheel();
-
-	Chromosomes children;
-	children.reserve(CHILDREN_COUNT);
-	makeChildren(children);
-
-	// Apply elitism, get the best chromosomes from the population and overwrite some children
-	elitsm(population, children);
-
-#ifdef SVG
-	visualDebugGeneration(svgManager);
-#endif // SVG
-
-	++populationId;
-	population.shrink_to_fit();
-	population = children;
-
-	reset();
+	#ifdef SVG
+		SVGManager& svgManager
+	#endif // SVG
+	) {
+//		prepareForRoulleteWheel();
+//	
+//		Chromosomes children;
+//		children.reserve(CHILDREN_COUNT);
+//		makeChildren(children);
+//	
+//		// Apply elitism, get the best chromosomes from the population and overwrite some children
+//		elitsm(*population, children);
+//	
+//	#ifdef SVG
+//		visualDebugGeneration(svgManager);
+//	#endif // SVG
+//	
+//		++populationId;
+//		population->clear();
+//		population->shrink_to_fit();
+//		population = &children;
+//	
+//		reset();
 }
 
 
@@ -1737,41 +1771,39 @@ void GeneticPopulation::makeNextGeneration(
 //*************************************************************************************************************
 
 void GeneticPopulation::prepareForRoulleteWheel() {
-	// normalize the evalutions
-	for (Chromosome& chrom : population) {
-		chrom.setEvaluation(chrom.getEvaluation() / evaluationSum);
-	}
-
-	// sort the population's chromosome based on the cumulative sum
-	sort(population.rbegin(), population.rend());
-
-	// calc the cumulative sum
-	population[0].setEvaluation(1.f); // First chromosome always 1
-	const int lastButOneIdx = static_cast<int>(population.size()) - 1 - 1;
-	for (int chromIdx = lastButOneIdx; chromIdx > 0; --chromIdx) {
-		Chromosome& lastChrom = population[chromIdx + 1];
-		Chromosome& currentChrom = population[chromIdx];
-		currentChrom.setEvaluation(currentChrom.getEvaluation() + lastChrom.getEvaluation());
-	}
+//	// normalize the evalutions
+//	for (Chromosome& chrom : *population) {
+//		chrom.setEvaluation(chrom.getEvaluation() / evaluationSum);
+//	}
+//
+//	// sort the population's chromosome based on the cumulative sum
+//	sort(population->rbegin(), population->rend());
+//
+//	// calc the cumulative sum
+//	population->at(0).setEvaluation(1.f); // First chromosome always 1
+//	const int lastButOneIdx = static_cast<int>(population->size()) - 1 - 1;
+//	for (int chromIdx = lastButOneIdx; chromIdx > 0; --chromIdx) {
+//		Chromosome& lastChrom = population->at(chromIdx + 1);
+//		Chromosome& currentChrom = population->at(chromIdx);
+//		currentChrom.setEvaluation(currentChrom.getEvaluation() + lastChrom.getEvaluation());
+//	}
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void GeneticPopulation::reset() {
-	for (Chromosome& chromosome : population) {
-		chromosome.resetFlags();
-	}
-
-	evaluationSum = 0.f;
+//	for (Chromosome& chromosome : population) {
+//		chromosome.resetFlags();
+//	}
+//
+//	evaluationSum = 0.f;
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void GeneticPopulation::turnEnd() {
-	population.shrink_to_fit();
-	population.clear();
 
 	populationId = 0;
 }
@@ -1838,8 +1870,8 @@ private:
 	int lastPower; /// The power from previous turn
 	int turnsCount;
 
-	Shuttle* shuttle;
-	Surface* surface;
+	Shuttle shuttle;
+	Surface surface;
 
 	GeneticPopulation geneticPopulation;
 
@@ -1861,8 +1893,8 @@ private:
 Game::Game() :
 	lastPower(0),
 	turnsCount(0),
-	shuttle(NULL),
-	surface(NULL),
+	shuttle(),
+	surface(),
 	geneticPopulation(),
 	solutionChromIdx(INVALID_ID),
 	turnGeneIdx(0)
@@ -1876,30 +1908,19 @@ Game::Game() :
 //*************************************************************************************************************
 
 Game::~Game() {
-	if (shuttle) {
-		delete shuttle;
-		shuttle = NULL;
-	}
-
-	if (surface) {
-		delete surface;
-		surface = NULL;
-	}
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void Game::initGame() {
-	shuttle = new Shuttle();
-	surface = new Surface();
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 void Game::gameBegin() {
-	geneticPopulation.setSurface(*surface);
+	geneticPopulation.setSurface(surface);
 
 #ifdef SVG
 	string surfaceSVGData = surface->constructSVGData(svgManager);
@@ -1951,8 +1972,8 @@ void Game::getGameInput() {
 		int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
 		cin >> landX >> landY; cin.ignore();
 
-		if (surface->getMaxLandY() < landY) {
-			surface->setMaxLandY(landY);
+		if (surface.getMaxLandY() < landY) {
+			surface.setMaxLandY(landY);
 		}
 
 #ifdef OUTPUT_GAME_DATA
@@ -1972,17 +1993,17 @@ void Game::getGameInput() {
 			}
 
 			// Line index is - 1, because the second point is ith index
-			surface->addLine(point0, point1, i - 1, landingZoneDirection, landingZoneFound);
+			surface.addLine(point0, point1, i - 1, landingZoneDirection, landingZoneFound);
 		}
 
 		point0 = point1;
 	}
 
 	if (leftDistToLandingZone > rightDistToLandingZone) {
-		surface->setMaxDistance(leftDistToLandingZone);
+		surface.setMaxDistance(leftDistToLandingZone);
 	}
 	else {
-		surface->setMaxDistance(rightDistToLandingZone);
+		surface.setMaxDistance(rightDistToLandingZone);
 	}
 }
 
@@ -2008,12 +2029,12 @@ void Game::getTurnInput() {
 	// Get data for the shuttle if solution is not found, because everything from the genetic algorithm will be applied on top of the initial shuttle
 	// And there may be differences from the online platform if I use each new position
 	if (INVALID_ID == solutionChromIdx) {
-		shuttle->setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
-		shuttle->setHSpeed(static_cast<float>(hSpeed));
-		shuttle->setVSpeed(static_cast<float>(vSpeed));
-		shuttle->setFuel(fuel);
-		shuttle->setRotate(rotate);
-		shuttle->setPower(power);
+		shuttle.setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
+		shuttle.setHSpeed(static_cast<float>(hSpeed));
+		shuttle.setVSpeed(static_cast<float>(vSpeed));
+		shuttle.setFuel(fuel);
+		shuttle.setRotate(rotate);
+		shuttle.setPower(power);
 	}
 
 	if (0 == turnsCount) {
@@ -2029,6 +2050,8 @@ void Game::turnBegin() {
 	if (INVALID_ID != solutionChromIdx) {
 		return;
 	}
+
+	geneticPopulation.init(shuttle);
 
 	geneticPopulation.initRandomPopulation();
 
@@ -2059,53 +2082,53 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn(bool& notDone) {
-#ifdef SVG
-	if (INVALID_ID != solutionChromIdx) {
-		notDone = false;
-		return;
-	}
-#endif // SVG
-
-	int solutionIdx = solutionChromIdx;
-	if (INVALID_ID == solutionChromIdx) {
-		solutionChromIdx = 0; // Override the solution value, no time to simulate in each turn
-		solutionIdx = 0;
-	}
-
-	const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
-	const Genes& solutionGenes = solutionChromosome.getGenesRef();
-	const int genesCount = static_cast<int>(solutionGenes.size());
-	
-	char separator = ' ';
-#ifdef SIMULATION_OUTPUT
-	separator = ',';
-#endif // SIMULATION_OUTPUT
-
-	if (turnGeneIdx < genesCount) {
-		shuttle->applyNewRotateAngle(solutionGenes[turnGeneIdx].rotate);
-		shuttle->applyNewPower(solutionGenes[turnGeneIdx].power);
-
-		lastPower = shuttle->getPower();
-		cout << shuttle->getRotate() << separator << lastPower << endl;
-	}
-	else if (turnGeneIdx == genesCount) {
-		cout << 0 << separator << lastPower << endl;
-	}
-	else {
-		cout << 0 << separator << 0 << endl;
-	}
-
-	if (INVALID_ID != solutionChromIdx) {
-		++turnGeneIdx;
-	}
-
-#ifdef SIMULATION_OUTPUT
-	cout << ',';
-#endif // SIMULATION_OUTPUT
-
-	if (turnsCount > genesCount + ADDITIONAL_TURNS) {
-		notDone = false;
-	}
+//#ifdef SVG
+//	if (INVALID_ID != solutionChromIdx) {
+//		notDone = false;
+//		return;
+//	}
+//#endif // SVG
+//
+//	int solutionIdx = solutionChromIdx;
+//	if (INVALID_ID == solutionChromIdx) {
+//		solutionChromIdx = 0; // Override the solution value, no time to simulate in each turn
+//		solutionIdx = 0;
+//	}
+//
+//	const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
+//	const Genes& solutionGenes = solutionChromosome.getGenesRef();
+//	const int genesCount = static_cast<int>(solutionGenes.size());
+//	
+//	char separator = ' ';
+//#ifdef SIMULATION_OUTPUT
+//	separator = ',';
+//#endif // SIMULATION_OUTPUT
+//
+//	if (turnGeneIdx < genesCount) {
+//		shuttle.applyNewRotateAngle(solutionGenes[turnGeneIdx].rotate);
+//		shuttle.applyNewPower(solutionGenes[turnGeneIdx].power);
+//
+//		lastPower = shuttle.getPower();
+//		cout << shuttle.getRotate() << separator << lastPower << endl;
+//	}
+//	else if (turnGeneIdx == genesCount) {
+//		cout << 0 << separator << lastPower << endl;
+//	}
+//	else {
+//		cout << 0 << separator << 0 << endl;
+//	}
+//
+//	if (INVALID_ID != solutionChromIdx) {
+//		++turnGeneIdx;
+//	}
+//
+//#ifdef SIMULATION_OUTPUT
+//	cout << ',';
+//#endif // SIMULATION_OUTPUT
+//
+//	if (turnsCount > genesCount + ADDITIONAL_TURNS) {
+//		notDone = false;
+//	}
 }
 
 //*************************************************************************************************************
