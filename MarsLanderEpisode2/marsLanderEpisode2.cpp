@@ -16,8 +16,8 @@
 #include <iterator>
 
 //#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
 //#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
@@ -85,7 +85,7 @@ const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
 const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
-const int CHECK_FOR_CRASH_AFTER_GENE = 10;
+const int CHECK_FOR_CRASH_AFTER_GENE = 20;
 
 const unsigned int CRASHED_IDX_MASK = 0b1111'1000'0000'0000'0000'0000'0000'0000;
 const int CRASHED_IDX_MASK_OFFSET = 27;
@@ -856,7 +856,7 @@ void Shuttle::print() const {
 //*************************************************************************************************************
 
 void Shuttle::getTitleLines(vector<string>& titleLines) const {
-	titleLines.clear();
+	titleLines.shrink_to_fit();
 
 	string positionLine = "Shuttle position: (";
 	positionLine.append(to_string(static_cast<int>(position.getXCoord())));
@@ -887,7 +887,8 @@ void Shuttle::getTitleLines(vector<string>& titleLines) const {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-struct Gene {
+class Gene {
+public:
 	Gene();
 	Gene(int rotate, int power);
 
@@ -976,6 +977,9 @@ public:
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
 	void setChromosome(const Genes& chromosome) { this->chromosome = chromosome; }
 
+	/// Reserve memory needed for the gene array of the Chromosome
+	void init();
+
 	void setFlag(int flag);
 	void unsetFlag(int flag);
 	bool hasFlag(int flag) const;
@@ -1038,22 +1042,26 @@ Chromosome::Chromosome() :
 	path()
 #endif // SVG
 {
-
+	init();
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 Chromosome::~Chromosome() {
-	chromosome.clear();
+	chromosome.shrink_to_fit();
 
 #ifdef SVG
-	path.clear();
+	path.shrink_to_fit();
 #endif // SVG
 }
 
 //*************************************************************************************************************
 //*************************************************************************************************************
+
+void Chromosome::init() {
+	chromosome.reserve(CHROMOSOME_SIZE);
+}
 
 void Chromosome::setFlag(int flag) {
 	flags |= flag;
@@ -1110,7 +1118,7 @@ bool Chromosome::operator<(const Chromosome& chromosome) const {
 
 Chromosome& Chromosome::operator=(const Chromosome& other) {
 	if (this != &other) {
-		chromosome.clear();
+		chromosome.shrink_to_fit();
 
 		shuttle = other.shuttle;
 		evaluation = other.evaluation;
@@ -1118,7 +1126,7 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 		flags = other.flags;
 
 #ifdef SVG
-		path.clear();
+		path.shrink_to_fit();
 		originalEvaluation = other.originalEvaluation;
 		path = other.path;
 #endif // SVG
@@ -1281,7 +1289,7 @@ Gene Chromosome::getGene(int geneIdx) const {
 
 void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 #ifdef SVG
-	path.clear();
+	path.shrink_to_fit();
 #endif // SVG
 
 	// Use the last postion for shuttle to define a line and check if it crosses a surface line
@@ -1295,7 +1303,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 		path.push_back(shuttle.getPosition());
 #endif // SVG
 
-		if (geneIdx > 0) {
+		if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
 			bool crashedInLandingArea = false;
 			const int crashedLineIdx = surface->collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 
@@ -1699,6 +1707,7 @@ void GeneticPopulation::makeNextGeneration(
 	prepareForRoulleteWheel();
 
 	Chromosomes children;
+	children.reserve(CHILDREN_COUNT);
 	makeChildren(children);
 
 	// Apply elitism, get the best chromosomes from the population and overwrite some children
@@ -1709,7 +1718,7 @@ void GeneticPopulation::makeNextGeneration(
 #endif // SVG
 
 	++populationId;
-	population.clear();
+	population.shrink_to_fit();
 	population = children;
 }
 
