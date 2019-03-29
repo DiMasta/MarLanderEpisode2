@@ -15,10 +15,10 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
+#define SVG
+#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
+#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -64,7 +64,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 290;//250;
+const int MAX_POPULATION = 1000;//250;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
@@ -1255,16 +1255,16 @@ float Chromosome::evaluate(Surface* surface) {
 			yPen = (-MAX_V_ABS_SPEED - vSpeed) / 2.f;
 		}
 
-		float rotationPen = 0.f;
-		if (abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
-			rotationPen = (abs(rotation) - MAX_ROTATION_ANGLE_STEP) / 2.f;
-		}
+		//float rotationPen = 0.f;
+		//if (abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
+		//	rotationPen = (abs(rotation) - MAX_ROTATION_ANGLE_STEP) / 2.f;
+		//}
 
-		evaluation = 250.f - xPen - yPen - rotationPen;
+		evaluation = 200.f - xPen - yPen/* - rotationPen*/;
 	}
 	else {
 		// 200-300: landed safely, calculate score by fuel remaining
-		evaluation = 250.f + (100.f * shuttle.getFuel() / INITIAL_FUEL);
+		evaluation = 200.f + (100.f * shuttle.getFuel() / INITIAL_FUEL);
 	}
 #ifdef SVG
 	originalEvaluation = evaluation;
@@ -1747,11 +1747,11 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 
 	// calc the cumulative sum
 	population[0].setEvaluation(1.f); // First chromosome always 1
-	for (size_t chromIdx = 1; chromIdx < population.size(); ++chromIdx) {
-		for (size_t nextChromIdx = chromIdx + 1; nextChromIdx < population.size(); ++nextChromIdx) {
-			Chromosome& currentChrom = population[chromIdx];
-			currentChrom.setEvaluation(currentChrom.getEvaluation() + population[nextChromIdx].getEvaluation());
-		}
+	const int lastButOneIdx = static_cast<int>(population.size()) - 1 - 1;
+	for (int chromIdx = lastButOneIdx; chromIdx > 0; --chromIdx) {
+		Chromosome& lastChrom = population[chromIdx + 1];
+		Chromosome& currentChrom = population[chromIdx];
+		currentChrom.setEvaluation(currentChrom.getEvaluation() + lastChrom.getEvaluation());
 	}
 }
 
