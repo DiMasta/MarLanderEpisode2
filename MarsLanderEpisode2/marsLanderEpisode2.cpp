@@ -62,9 +62,9 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 95;//300;
+const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 1000;//250;
+const int MAX_POPULATION = 290;//250;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
@@ -991,7 +991,7 @@ public:
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
 
-	void evaluate(Surface* surface);
+	float evaluate(Surface* surface);
 	void addGene(const Gene& gene);
 	Gene getGene(int geneIdx) const;
 	void simulate(Surface* surface, bool& goodForLanding);
@@ -1210,7 +1210,7 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::evaluate(Surface* surface) {
+float Chromosome::evaluate(Surface* surface) {
 	const Coord xPos = shuttle.getPosition().getXCoord();
 	const Coord yPos = shuttle.getPosition().getYCoord();
 	const bool validXPos = xPos >= 0 && xPos < MAP_WIDTH;
@@ -1223,7 +1223,7 @@ void Chromosome::evaluate(Surface* surface) {
 		originalEvaluation = 0.f;
 #endif // SVG
 
-		return;
+		return evaluation;
 	}
 
 	const float hSpeed = shuttle.getHSpeed();
@@ -1269,6 +1269,8 @@ void Chromosome::evaluate(Surface* surface) {
 #ifdef SVG
 	originalEvaluation = evaluation;
 #endif // SVG
+
+	return evaluation;
 }
 
 //*************************************************************************************************************
@@ -1487,6 +1489,7 @@ private:
 	Surface surface;
 
 	int populationId; /// For visual debug purposes
+	float evaluationSum; /// Sum of all evaluations
 };
 
 //*************************************************************************************************************
@@ -1541,7 +1544,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, int& solutionChromIdx) {
 		// TODO: Better way to check for parent
 		if (chromosome.hasFlag(CRASHED_FLAG)) {
 			// Directly transfered parent
-			chromosome.evaluate(&surface); // Reset evaluation, because it was modified to fit the roullete wheel
+			evaluationSum += chromosome.evaluate(&surface); // Reset evaluation, because it was modified to fit the roullete wheel
 			continue;
 		}
 
@@ -1553,7 +1556,7 @@ bool GeneticPopulation::simulate(Shuttle* shuttle, int& solutionChromIdx) {
 			break;
 		}
 
-		chromosome.evaluate(&surface);
+		evaluationSum += chromosome.evaluate(&surface);
 	}
 
 	return foundResChromosome;
@@ -1709,7 +1712,6 @@ void GeneticPopulation::makeNextGeneration(
 	SVGManager& svgManager
 #endif // SVG
 ) {
-	reset();
 	prepareForRoulleteWheel();
 
 	Chromosomes children;
@@ -1726,6 +1728,8 @@ void GeneticPopulation::makeNextGeneration(
 	++populationId;
 	population.shrink_to_fit();
 	population = children;
+
+	reset();
 }
 
 
@@ -1733,23 +1737,17 @@ void GeneticPopulation::makeNextGeneration(
 //*************************************************************************************************************
 
 void GeneticPopulation::prepareForRoulleteWheel() {
-	// sum of evaluations
-	float sum = 0.f;
-	for (const Chromosome& chrom : population) {
-		sum += chrom.getEvaluation();
-	}
-
 	// normalize the evalutions
 	for (Chromosome& chrom : population) {
-		chrom.setEvaluation(chrom.getEvaluation() / sum);
+		chrom.setEvaluation(chrom.getEvaluation() / evaluationSum);
 	}
 
 	// sort the population's chromosome based on the cumulative sum
 	sort(population.rbegin(), population.rend());
 
 	// calc the cumulative sum
-	// TODO: first chromosome cumulative evalution could be written 1, left it to make check
-	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
+	population[0].setEvaluation(1.f); // First chromosome always 1
+	for (size_t chromIdx = 1; chromIdx < population.size(); ++chromIdx) {
 		for (size_t nextChromIdx = chromIdx + 1; nextChromIdx < population.size(); ++nextChromIdx) {
 			Chromosome& currentChrom = population[chromIdx];
 			currentChrom.setEvaluation(currentChrom.getEvaluation() + population[nextChromIdx].getEvaluation());
@@ -1764,6 +1762,8 @@ void GeneticPopulation::reset() {
 	for (Chromosome& chromosome : population) {
 		chromosome.resetFlags();
 	}
+
+	evaluationSum = 0.f;
 }
 
 //*************************************************************************************************************
@@ -2035,7 +2035,7 @@ void Game::turnBegin() {
 	bool answerFound = false;
 
 	while (!answerFound && geneticPopulation.getPopulationId() <= MAX_POPULATION) {
-		cerr << "Population: " << geneticPopulation.getPopulationId() << endl;
+		//cerr << "Population: " << geneticPopulation.getPopulationId() << endl;
 
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromIdx);
 
@@ -2068,6 +2068,7 @@ void Game::makeTurn(bool& notDone) {
 
 	int solutionIdx = solutionChromIdx;
 	if (INVALID_ID == solutionChromIdx) {
+		solutionChromIdx = 0; // Override the solution value, no time to simulate in each turn
 		solutionIdx = 0;
 	}
 
