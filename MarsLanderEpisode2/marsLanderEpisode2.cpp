@@ -16,9 +16,9 @@
 #include <iterator>
 
 //#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -62,7 +62,7 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 100;//300;
+const int CHROMOSOME_SIZE = 95;//300;
 const int POPULATION_SIZE = 90;
 const int MAX_POPULATION = 1000;//250;
 const int CHILDREN_COUNT = POPULATION_SIZE;
@@ -93,6 +93,9 @@ const int SELECTED_FLAG = 1;						// 1
 const int SOLUTION_FLAG = 1 << 1;					// 2
 const int CRASHED_ON_LANDING_ZONE_FLAG = 1 << 2;	// 4
 const int CRASHED_FLAG = 1 << 4;					// 8
+
+///Global variables
+int INITIAL_FUEL = 0; // Use static member for the initual fuel it is used only in Chromosome::evaluate
 
 enum ComponentType {
 	CT_INVALID = -1,
@@ -437,9 +440,14 @@ public:
 		return maxDistance;
 	}
 
+	int getMaxLandY() const {
+		return maxLandY;
+	}
+
 	void setLines(const Lines& lines) { this->lines = lines; }
 	void setMaxDistance(float maxDistance) { this->maxDistance = maxDistance; }
-
+	void setMaxLandY(int maxLandY) { this->maxLandY = maxLandY; }
+ 
 	int getLinesCount() const;
 	Line getLine(int lineIdx) const;
 
@@ -471,6 +479,7 @@ public:
 private:
 	Lines lines;
 	float maxDistance;
+	int maxLandY; /// This tells when check if a shuttle could colide with surface
 	int landingAreaLineIdx;
 };
 
@@ -480,6 +489,7 @@ private:
 Surface::Surface() :
 	lines(),
 	maxDistance(0.f),
+	maxLandY(0),
 	landingAreaLineIdx(INVALID_ID)
 {
 
@@ -693,17 +703,12 @@ public:
 		return power;
 	}
 
-	int getInitialFuel() const {
-		return initialFuel;
-	}
-
 	void setPosition(Coords position) { this->position = position; }
 	void setHSpeed(float hSpeed) { this->hSpeed = hSpeed; }
 	void setVSpeed(float vSpeed) { this->vSpeed = vSpeed; }
 	void setFuel(int fuel) { this->fuel = fuel; }
 	void setRotate(int rotate) { this->rotate = rotate; }
 	void setPower(int power) { this->power = power; }
-	void setInitialFuel(int initialFuel) { this->initialFuel = initialFuel; }
 
 	void calculateComponents(
 		float initialSpeed,
@@ -731,7 +736,6 @@ private:
 	int fuel; // the quantity of remaining fuel in liters.
 	int rotate; // the rotation angle in degrees (-90 to 90).
 	int power; // the thrust power (0 to 4).
-	int initialFuel;
 };
 
 //*************************************************************************************************************
@@ -743,8 +747,7 @@ Shuttle::Shuttle() :
 	vSpeed(0),
 	fuel(0),
 	rotate(0),
-	power(0),
-	initialFuel(0)
+	power(0)
 {
 
 }
@@ -1261,7 +1264,7 @@ void Chromosome::evaluate(Surface* surface) {
 	}
 	else {
 		// 200-300: landed safely, calculate score by fuel remaining
-		evaluation = 250.f + (100.f * shuttle.getFuel() / shuttle.getInitialFuel());
+		evaluation = 250.f + (100.f * shuttle.getFuel() / INITIAL_FUEL);
 	}
 #ifdef SVG
 	originalEvaluation = evaluation;
@@ -1948,6 +1951,10 @@ void Game::getGameInput() {
 		int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
 		cin >> landX >> landY; cin.ignore();
 
+		if (surface->getMaxLandY() < landY) {
+			surface->setMaxLandY(landY);
+		}
+
 #ifdef OUTPUT_GAME_DATA
 			cerr << landX << " " << landY << endl;
 #endif // OUTPUT_GAME_DATA
@@ -2005,9 +2012,12 @@ void Game::getTurnInput() {
 		shuttle->setHSpeed(static_cast<float>(hSpeed));
 		shuttle->setVSpeed(static_cast<float>(vSpeed));
 		shuttle->setFuel(fuel);
-		shuttle->setInitialFuel(fuel);
 		shuttle->setRotate(rotate);
 		shuttle->setPower(power);
+	}
+
+	if (0 == turnsCount) {
+		INITIAL_FUEL = fuel;
 	}
 }
 
