@@ -16,9 +16,9 @@
 #include <iterator>
 
 //#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
+#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
+#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -64,7 +64,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 1000;
+const int MAX_POPULATION = 1000;//250;
 const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
@@ -85,7 +85,7 @@ const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
 const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
-const int CHECK_FOR_CRASH_AFTER_GENE = 20;
+const int CHECK_FOR_CRASH_AFTER_GENE = 0;
 
 const unsigned int CRASHED_IDX_MASK = 0b1111'1000'0000'0000'0000'0000'0000'0000;
 const int CRASHED_IDX_MASK_OFFSET = 27;
@@ -516,35 +516,33 @@ int Surface::collisionWithSurface(
 ) {
 	int crashLineIdx = INVALID_ID;
 
-	if (point1.getXCoord() >= 0 && point1.getXCoord() <= MAP_WIDTH) {
-		for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
-			const Line& line = lines[lineIdx];
+	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
+		const Line& line = lines[lineIdx];
 
-			const Coord& p0x = point0.getXCoord();
-			const Coord& p0y = point0.getYCoord();
-			const Coord& p1x = point1.getXCoord();
-			const Coord& p1y = point1.getYCoord();
+		const Coord& p0x = point0.getXCoord();
+		const Coord& p0y = point0.getYCoord();
+		const Coord& p1x = point1.getXCoord();
+		const Coord& p1y = point1.getYCoord();
 
-			const Coord& p2x = line.getPoint0().getXCoord();
-			const Coord& p2y = line.getPoint0().getYCoord();
-			const Coord& p3x = line.getPoint1().getXCoord();
-			const Coord& p3y = line.getPoint1().getYCoord();
+		const Coord& p2x = line.getPoint0().getXCoord();
+		const Coord& p2y = line.getPoint0().getYCoord();
+		const Coord& p3x = line.getPoint1().getXCoord();
+		const Coord& p3y = line.getPoint1().getYCoord();
 
-			const Coord s1x = p1x - p0x;
-			const Coord s1y = p1y - p0y;
+		const Coord s1x = p1x - p0x;
+		const Coord s1y = p1y - p0y;
 
-			const Coord s2x = p3x - p2x;
-			const Coord s2y = p3y - p2y;
+		const Coord s2x = p3x - p2x;
+		const Coord s2y = p3y - p2y;
 
-			const Coord s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
-			const Coord t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
+		const Coord s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
+		const Coord t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
 
-			if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
-				//collisionPoint.setXCoord(p0x + (t * s1x));
-				//collisionPoint.setYCoord(p0y + (t * s1y));
+		if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
+			//collisionPoint.setXCoord(p0x + (t * s1x));
+			//collisionPoint.setYCoord(p0y + (t * s1y));
 
-				crashLineIdx = static_cast<int>(lineIdx);
-			}
+			crashLineIdx = static_cast<int>(lineIdx);
 		}
 	}
 
@@ -856,7 +854,7 @@ void Shuttle::print() const {
 //*************************************************************************************************************
 
 void Shuttle::getTitleLines(vector<string>& titleLines) const {
-	titleLines.shrink_to_fit();
+	titleLines.clear();
 
 	string positionLine = "Shuttle position: (";
 	positionLine.append(to_string(static_cast<int>(position.getXCoord())));
@@ -1052,7 +1050,7 @@ Chromosome::~Chromosome() {
 	chromosome.shrink_to_fit();
 
 #ifdef SVG
-	path.shrink_to_fit();
+	path.clear();
 #endif // SVG
 }
 
@@ -1126,7 +1124,7 @@ Chromosome& Chromosome::operator=(const Chromosome& other) {
 		flags = other.flags;
 
 #ifdef SVG
-		path.shrink_to_fit();
+		path.clear();
 		originalEvaluation = other.originalEvaluation;
 		path = other.path;
 #endif // SVG
@@ -1255,15 +1253,15 @@ void Chromosome::evaluate(Surface* surface) {
 		}
 
 		float rotationPen = 0.f;
-		//if (abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
-		//	rotationPen = (abs(rotation) - MAX_ROTATION_ANGLE_STEP) / 2.f;
-		//}
+		if (abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
+			rotationPen = (abs(rotation) - MAX_ROTATION_ANGLE_STEP) / 2.f;
+		}
 
-		evaluation = 200.f - xPen - yPen - rotationPen;
+		evaluation = 250.f - xPen - yPen - rotationPen;
 	}
 	else {
 		// 200-300: landed safely, calculate score by fuel remaining
-		evaluation = 200.f + (100.f * shuttle.getFuel() / shuttle.getInitialFuel());
+		evaluation = 250.f + (100.f * shuttle.getFuel() / shuttle.getInitialFuel());
 	}
 #ifdef SVG
 	originalEvaluation = evaluation;
@@ -1274,7 +1272,7 @@ void Chromosome::evaluate(Surface* surface) {
 //*************************************************************************************************************
 
 void Chromosome::addGene(const Gene& gene) {
-	chromosome.push_back(gene);
+	chromosome.emplace_back(gene);
 }
 
 //*************************************************************************************************************
@@ -1289,7 +1287,7 @@ Gene Chromosome::getGene(int geneIdx) const {
 
 void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 #ifdef SVG
-	path.shrink_to_fit();
+	path.clear();
 #endif // SVG
 
 	// Use the last postion for shuttle to define a line and check if it crosses a surface line
@@ -1469,6 +1467,9 @@ public:
 	/// Reset stats for each induvidual to the default values
 	void reset();
 
+	/// Prepare for next turn
+	void turnEnd();
+
 #ifdef SVG
 	/// Print the information for the current generation for visual debugging
 	/// @param[in/out] svgManager the manager resposible for the visual debugging
@@ -1489,7 +1490,6 @@ private:
 //*************************************************************************************************************
 
 GeneticPopulation::GeneticPopulation() :
-	population(POPULATION_SIZE),
 	surface(),
 	populationId(0)
 {
@@ -1508,7 +1508,9 @@ void GeneticPopulation::initRandomPopulation() {
 	int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
 	int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
 
-	for (size_t chromIdx = 0; chromIdx < population.size(); ++chromIdx) {
+	population.reserve(POPULATION_SIZE);
+	for (size_t chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+		Chromosome chromosome;
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 
 			int randAngle = rand() % maxAngleRand;
@@ -1518,8 +1520,9 @@ void GeneticPopulation::initRandomPopulation() {
 			randPower += MIN_POWER_STEP;
 
 			Gene gene(randAngle, randPower);
-			population[chromIdx].addGene(gene);
+			chromosome.addGene(gene);
 		}
+		population.emplace_back(chromosome);
 	}
 }
 
@@ -1763,6 +1766,16 @@ void GeneticPopulation::reset() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+void GeneticPopulation::turnEnd() {
+	population.shrink_to_fit();
+	population.clear();
+
+	populationId = 0;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 #ifdef SVG
 void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
 
@@ -1830,6 +1843,9 @@ private:
 	/// The solution of the GA
 	int solutionChromIdx;
 
+	/// Which gene to output from the chromosome solution
+	int turnGeneIdx;
+
 #ifdef SVG
 	SVGManager svgManager;
 #endif // SVG
@@ -1845,7 +1861,8 @@ Game::Game() :
 	shuttle(NULL),
 	surface(NULL),
 	geneticPopulation(),
-	solutionChromIdx(INVALID_ID)
+	solutionChromIdx(INVALID_ID),
+	turnGeneIdx(0)
 #ifdef SVG
 	,svgManager()
 #endif // SVG
@@ -1880,7 +1897,6 @@ void Game::initGame() {
 
 void Game::gameBegin() {
 	geneticPopulation.setSurface(*surface);
-	geneticPopulation.initRandomPopulation();
 
 #ifdef SVG
 	string surfaceSVGData = surface->constructSVGData(svgManager);
@@ -1982,9 +1998,9 @@ void Game::getTurnInput() {
 		cerr << fuel << " " << rotate << " " << power << endl;
 #endif // OUTPUT_GAME_DATA
 
-	// Get data for the shuttle only once, because everything from the genetic algorithm will be applied on top of the initial shuttle
+	// Get data for the shuttle if solution is not found, because everything from the genetic algorithm will be applied on top of the initial shuttle
 	// And there may be differences from the online platform if I use each new position
-	if (0 == turnsCount) {
+	if (INVALID_ID == solutionChromIdx) {
 		shuttle->setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
 		shuttle->setHSpeed(static_cast<float>(hSpeed));
 		shuttle->setVSpeed(static_cast<float>(vSpeed));
@@ -1999,14 +2015,18 @@ void Game::getTurnInput() {
 //*************************************************************************************************************
 
 void Game::turnBegin() {
-	// Run the genetic algorithm only once
-	if (turnsCount > 0) {
+	// Run the genetic algorithm every turn if no solution is found
+	if (INVALID_ID != solutionChromIdx) {
 		return;
 	}
 
+	geneticPopulation.initRandomPopulation();
+
 	bool answerFound = false;
 
-	while (!answerFound) {
+	while (!answerFound && geneticPopulation.getPopulationId() <= MAX_POPULATION) {
+		cerr << "Population: " << geneticPopulation.getPopulationId() << endl;
+
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromIdx);
 
 		if (answerFound) {
@@ -2017,18 +2037,11 @@ void Game::turnBegin() {
 			break;
 		}
 
-		// May be I could remove this check when I'm sure there always will be a solution
-		// To optimize one if statement
-		if (geneticPopulation.getPopulationId() == MAX_POPULATION) {
-			break;
-		}
-		else {
-			geneticPopulation.makeNextGeneration(
+		geneticPopulation.makeNextGeneration(
 #ifdef SVG
-				svgManager
+			svgManager
 #endif // SVG
-			);
-		}
+		);
 	}
 }
 
@@ -2037,13 +2050,18 @@ void Game::turnBegin() {
 
 void Game::makeTurn(bool& notDone) {
 #ifdef SVG
-	if (INVALID_ID == solutionChromIdx) {
+	if (INVALID_ID != solutionChromIdx) {
 		notDone = false;
 		return;
 	}
 #endif // SVG
 
-	const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionChromIdx);
+	int solutionIdx = solutionChromIdx;
+	if (INVALID_ID == solutionChromIdx) {
+		solutionIdx = 0;
+	}
+
+	const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
 	const Genes& solutionGenes = solutionChromosome.getGenesRef();
 	const int genesCount = static_cast<int>(solutionGenes.size());
 	
@@ -2052,18 +2070,22 @@ void Game::makeTurn(bool& notDone) {
 	separator = ',';
 #endif // SIMULATION_OUTPUT
 
-	if (turnsCount < genesCount) {
-		shuttle->applyNewRotateAngle(solutionGenes[turnsCount].rotate);
-		shuttle->applyNewPower(solutionGenes[turnsCount].power);
+	if (turnGeneIdx < genesCount) {
+		shuttle->applyNewRotateAngle(solutionGenes[turnGeneIdx].rotate);
+		shuttle->applyNewPower(solutionGenes[turnGeneIdx].power);
 
 		lastPower = shuttle->getPower();
 		cout << shuttle->getRotate() << separator << lastPower << endl;
 	}
-	else if (turnsCount == genesCount) {
+	else if (turnGeneIdx == genesCount) {
 		cout << 0 << separator << lastPower << endl;
 	}
 	else {
 		cout << 0 << separator << 0 << endl;
+	}
+
+	if (INVALID_ID != solutionChromIdx) {
+		++turnGeneIdx;
 	}
 
 #ifdef SIMULATION_OUTPUT
@@ -2080,6 +2102,10 @@ void Game::makeTurn(bool& notDone) {
 
 void Game::turnEnd() {
 	++turnsCount;
+
+	if (INVALID_ID == solutionChromIdx) {
+		geneticPopulation.turnEnd();
+	}
 }
 
 //*************************************************************************************************************
