@@ -460,7 +460,7 @@ public:
 		const Coords& point0,
 		const Coords& point1,
 		bool& crashedInLandingArea
-	);
+	) const;
 
 	void addLine(
 		const Coords& point0,
@@ -523,7 +523,7 @@ int Surface::collisionWithSurface(
 	const Coords& point0,
 	const Coords& point1,
 	bool& crashedInLandingArea
-) {
+) const {
 	int crashLineIdx = INVALID_ID;
 
 	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
@@ -834,11 +834,11 @@ void Shuttle::simulate(int rotateAngle, int thrustPower) {
 	calculateComponents(hSpeed, CT_HORIZONTAL, displacementX, accelerationX);
 	calculateComponents(vSpeed, CT_VERTICAL, displacementY, accelerationY);
 
-	float newX = (float)position.getXCoord() + displacementX;
-	float newY = (float)position.getYCoord() + displacementY;
+	const float newX = (float)position.getXCoord() + displacementX;
+	const float newY = (float)position.getYCoord() + displacementY;
 
-	float newHSpeed = (float)hSpeed + accelerationX;
-	float newVSpeed = (float)vSpeed + accelerationY;
+	const float newHSpeed = (float)hSpeed + accelerationX;
+	const float newVSpeed = (float)vSpeed + accelerationY;
 
 	position.setXCoord(newX);
 	position.setYCoord(newY);
@@ -976,6 +976,9 @@ public:
 	/// Other think as genes will be overwritten as they are calculated
 	void reset();
 
+	/// Divide the evaluation by the sum if all evaluations of all chromosomes in order to normalize it
+	void normalizeEvaluation(float evaluationSum);
+
 	void setFlag(int flag);
 	void unsetFlag(int flag);
 	bool hasFlag(int flag) const;
@@ -989,7 +992,7 @@ public:
 	float evaluate(Surface* surface);
 	void insertGene(int geneIdx, const Gene& gene);
 	Gene getGene(int geneIdx) const;
-	void simulate(Surface* surface, bool& goodForLanding);
+	void simulate(const Surface& surface, bool& goodForLanding);
 	void mutate();
 	bool isValid();
 
@@ -1066,6 +1069,13 @@ void Chromosome::init(const Shuttle& shuttle) {
 void Chromosome::reset() {
 	resetFlags();
 	shuttle = initialShuttle;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::normalizeEvaluation(float evaluationSum) {
+	evaluation /= evaluationSum;
 }
 
 void Chromosome::setFlag(int flag) {
@@ -1294,7 +1304,7 @@ Gene Chromosome::getGene(int geneIdx) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
+void Chromosome::simulate(const Surface& surface, bool& goodForLanding) {
 #ifdef SVG
 	path.clear();
 #endif // SVG
@@ -1312,7 +1322,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 
 		if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
 			bool crashedInLandingArea = false;
-			const int crashedLineIdx = surface->collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
+			const int crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 
 			if (INVALID_ID != crashedLineIdx) {
 				setFlag(CRASHED_FLAG);
@@ -1325,6 +1335,8 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 					if (goodForLanding) {
 						// Ignore the gene which is after the crash
 						//chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
+						int debug = 0;
+						++debug;
 
 #ifdef SVG
 						for (size_t coordsIdx = 0; coordsIdx < path.size(); ++coordsIdx) {
@@ -1340,7 +1352,7 @@ void Chromosome::simulate(Surface* surface, bool& goodForLanding) {
 			}
 		}
 
-		previousShuttle = shuttle;
+		previousShuttle = shuttle; // I really want to not use copying, may be in favour of memory
 	}
 }
 
@@ -1560,8 +1572,7 @@ bool GeneticPopulation::simulate(const Shuttle& shuttle, int& solutionChromIdx) 
 			continue;
 		}
 
-		chromosome.setShuttle(shuttle);
-		chromosome.simulate(&surface, foundResChromosome);
+		chromosome.simulate(surface, foundResChromosome);
 
 		if (foundResChromosome) {
 			solutionChromIdx = static_cast<int>(chromIdx);
@@ -1742,7 +1753,7 @@ void GeneticPopulation::makeNextGeneration(
 		SVGManager& svgManager
 	#endif // SVG
 	) {
-//		prepareForRoulleteWheel();
+		prepareForRoulleteWheel();
 //	
 //		Chromosomes children;
 //		children.reserve(CHILDREN_COUNT);
@@ -1768,11 +1779,11 @@ void GeneticPopulation::makeNextGeneration(
 //*************************************************************************************************************
 
 void GeneticPopulation::prepareForRoulleteWheel() {
-//	// normalize the evalutions
-//	for (Chromosome& chrom : *population) {
-//		chrom.setEvaluation(chrom.getEvaluation() / evaluationSum);
-//	}
-//
+	// normalize the evalutions
+	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+		population[chromIdx].normalizeEvaluation(evaluationSum);
+	}
+
 //	// sort the population's chromosome based on the cumulative sum
 //	sort(population->rbegin(), population->rend());
 //
@@ -2049,14 +2060,10 @@ void Game::turnBegin() {
 	}
 
 	geneticPopulation.init(shuttle);
-
 	geneticPopulation.initRandomPopulation();
 
 	bool answerFound = false;
-
 	while (!answerFound && geneticPopulation.getPopulationId() <= MAX_POPULATION) {
-		//cerr << "Population: " << geneticPopulation.getPopulationId() << endl;
-
 		answerFound = geneticPopulation.simulate(shuttle, solutionChromIdx);
 
 		if (answerFound) {
