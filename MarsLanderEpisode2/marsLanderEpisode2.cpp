@@ -1477,10 +1477,9 @@ public:
 	//	/// @param[in] population the current population
 	//	/// @param[out] the new generation
 	//	void elitsm(const Chromosomes& population, Chromosomes& children);
-	//	
-	//	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
-	//	/// @param[out] children the new generation children
-	//	void makeChildren(Chromosomes& children);
+
+	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
+	void makeChildren();
 
 	/// Simulate all Chromosomes, using the commands from each gene to move the given shuttle
 	/// @param[in] shuttle the shuttle, for which the simulation is done TODO: do not use pointer
@@ -1607,36 +1606,42 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 	}
 #endif // SVG
 	float r = Math::randomFloatBetween0and1();
-	r += CORRECT_THE_RANDOM_FOR_SELECTION;
 
-	parent0Idx = POPULATION_SIZE - 1; // If r is too small, the comparison won't pass, so use the last chromosome
-	for (int chromIdx = 1; chromIdx < POPULATION_SIZE; ++chromIdx) {
-		if (r > population[chromIdx].getEvaluation()) {
-			parent0Idx = chromIdx - 1;
+	float cumulativeSum = 0.f;
+	parent0Idx = chromEvalIdxPairs.rbegin()->second; // If r is too big the loop will break before setting the parentIdx
+	for (ChromEvalIdxMap::const_reverse_iterator it = chromEvalIdxPairs.rbegin(); it != chromEvalIdxPairs.rend(); ++it) {
+		const float cumulativeEvaluation = 1.f - cumulativeSum;
+		if (r > cumulativeEvaluation) {
 			break;
 		}
+
+		parent0Idx = it->second; // Will be the last index
+		cumulativeSum += it->first; // TODO: this addition is done every time the population is iterated not sure if it is bottleneck
 	}
 
 	parent1Idx = parent0Idx;
-
 	while (parent1Idx == parent0Idx) {
 		r = Math::randomFloatBetween0and1();
-		r += CORRECT_THE_RANDOM_FOR_SELECTION;
 
+		cumulativeSum = 0.f;
+		parent1Idx = chromEvalIdxPairs.rbegin()->second; // If r is too big the loop will break before setting the parentIdx
 		// Code duplication, at the moment I cannot think of more elegant layout
-		for (int chromIdx = 1; chromIdx < POPULATION_SIZE; ++chromIdx) {
-			if (r > population[chromIdx].getEvaluation()) {
-				parent1Idx = chromIdx - 1;
+		for (ChromEvalIdxMap::const_reverse_iterator it = chromEvalIdxPairs.rbegin(); it != chromEvalIdxPairs.rend(); ++it) {
+			const float cumulativeEvaluation = 1.f - cumulativeSum;
+			if (r > cumulativeEvaluation) {
 				break;
 			}
+
+			parent1Idx = it->second; // Will be the last index
+			cumulativeSum += it->first;
 		}
 	}
 }
 
-//	/*************************************************************************************************************
-//	/*************************************************************************************************************
+//	//*************************************************************************************************************
+//	//*************************************************************************************************************
 //	
-//	oid GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& children) {
+//	void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& children) {
 //		const Chromosome& parent0 = population->at(parent0Idx);
 //		const Chromosome& parent1 = population->at(parent1Idx);
 //	
@@ -1682,57 +1687,57 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 //		else {
 //			children.push_back(parent1);
 //		}
+//	}
 //	
+//	//*************************************************************************************************************
+//	//*************************************************************************************************************
 //	
-//	/*************************************************************************************************************
-//	/*************************************************************************************************************
-//	
-//	oid GeneticPopulation::mutate(Chromosomes& children) {
+//	void GeneticPopulation::mutate(Chromosomes& children) {
 //		const int childrenSize = static_cast<int>(children.size());
 //		// Mutate last two chromosomes
 //		for (int chromIdx = 0; chromIdx < 2; ++chromIdx) {
 //			Chromosome& chrom = children[childrenSize - chromIdx - 1];
 //			chrom.mutate();
 //		}
+//	}
 //	
+//	//*************************************************************************************************************
+//	//*************************************************************************************************************
 //	
-//	/*************************************************************************************************************
-//	/*************************************************************************************************************
-//	
-//	oid GeneticPopulation::elitsm(const Chromosomes& population, Chromosomes& children) {
+//	void GeneticPopulation::elitsm(const Chromosomes& population, Chromosomes& children) {
 //		const int elitsCount = static_cast<int>(round(static_cast<float>(population.size()) * ELITISM_RATIO));
 //	
 //		// Chromosomes are sorted in descending order so the best elits are in the begining of the population
 //		for (int elitIdx = 0; elitIdx < elitsCount; ++elitIdx) {
 //			children[elitIdx] = population[elitIdx];
 //		}
-//	
-//	
-//	/*************************************************************************************************************
-//	/*************************************************************************************************************
-//	
-//	oid GeneticPopulation::makeChildren(Chromosomes& children) {
-//		// While the new population is not completly filled
-//		// select a pair of parents
-//		// crossover those parents using the Continuos Genetic Algorithm technique
-//		// mutate them using the Continuos Genetic Algorithm technique
-//		while (children.size() < CHILDREN_COUNT) {
-//			int parent0Idx = INVALID_ID; // For safety reasons
-//			int parent1Idx = INVALID_ID; // For safety reasons
-//	
-//			selectParentsIdxs(parent0Idx, parent1Idx);
-//	
-//	ifdef SVG
-//			population[parent0Idx].setFlag(SELECTED_FLAG);
-//			population[parent1Idx].setFlag(SELECTED_FLAG);
-//	endif // SVG
-//	
-//			// Maybe here a check if a valid pair of parents indecies is selected
-//			crossover(parent0Idx, parent1Idx, children);
-//	
-//			mutate(children);
-//		}
-//	
+//	}
+	
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::makeChildren() {
+	// While the new population is not completly filled
+	// select a pair of parents
+	// crossover those parents using the Continuos Genetic Algorithm technique
+	// mutate them using the Continuos Genetic Algorithm technique
+	for (int childrenCount = 0; childrenCount < POPULATION_SIZE; childrenCount += 2) {
+		int parent0Idx = INVALID_ID; // For safety reasons
+		int parent1Idx = INVALID_ID; // For safety reasons
+
+		selectParentsIdxs(parent0Idx, parent1Idx);
+
+#ifdef SVG
+		population[parent0Idx].setFlag(SELECTED_FLAG);
+		population[parent1Idx].setFlag(SELECTED_FLAG);
+#endif // SVG
+
+		// Maybe here a check if a valid pair of parents indecies is selected
+		//crossover(parent0Idx, parent1Idx, children);
+		//
+		//mutate(children);
+	}
+}
 
 //*************************************************************************************************************
 //*************************************************************************************************************
@@ -1763,10 +1768,8 @@ void GeneticPopulation::makeNextGeneration(
 	#endif // SVG
 	) {
 		prepareForRoulleteWheel();
-//	
-//		Chromosomes children;
-//		children.reserve(CHILDREN_COUNT);
-//		makeChildren(children);
+
+		makeChildren();
 //	
 //		// Apply elitism, get the best chromosomes from the population and overwrite some children
 //		elitsm(*population, children);
@@ -1788,14 +1791,15 @@ void GeneticPopulation::makeNextGeneration(
 //*************************************************************************************************************
 
 void GeneticPopulation::prepareForRoulleteWheel() {
-	// normalize the evalutions
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		Chromosome& chromosome = population[chromIdx];
-		const float normalizedEvaluation = chromosome.getEvaluation() / evaluationSum;
+		const float normalizedEvaluation = chromosome.getEvaluation() / evaluationSum; // normalize the evalutions
 		chromosome.setEvaluation(normalizedEvaluation);
 
 		chromEvalIdxPairs[normalizedEvaluation] = chromIdx; // Is it good think to use floats as keys
 	}
+
+	// Cumulative sum will be calced as we go throug the array when selecting parents
 
 //	// calc the cumulative sum
 //	population->at(0).setEvaluation(1.f); // First chromosome always 1
