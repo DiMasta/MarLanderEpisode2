@@ -1469,10 +1469,10 @@ public:
 	/// @param[in] childrenCount how many children are already created
 	void crossover(int parent0Idx, int parent1Idx, int childrenCount);
 
-	//	/// Mutate the last two chromosomes in the children array, they are the new from the crossover
-	//	/// @param[in/out] children the new children created from the crossover
-	//	void mutate(Chromosomes& children);
-	//	
+	/// Mutate the last two chromosomes in the children array, they are the new from the crossover
+	/// @param[in] childrenCount how many children are already created
+	void mutate(int childrenCount);
+
 	//	/// Get the best chromosomes from the current population and pass them unchanged to the next
 	//	/// @param[in] population the current population
 	//	/// @param[out] the new generation
@@ -1691,18 +1691,15 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCo
 	}
 }
 
-//	//*************************************************************************************************************
-//	//*************************************************************************************************************
-//	
-//	void GeneticPopulation::mutate(Chromosomes& children) {
-//		const int childrenSize = static_cast<int>(children.size());
-//		// Mutate last two chromosomes
-//		for (int chromIdx = 0; chromIdx < 2; ++chromIdx) {
-//			Chromosome& chrom = children[childrenSize - chromIdx - 1];
-//			chrom.mutate();
-//		}
-//	}
-//	
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::mutate(int childrenCount) {
+	// Last two chromosomes are made during the crossover
+	newPopulation[childrenCount].mutate();
+	newPopulation[childrenCount + 1].mutate();
+}
+
 //	//*************************************************************************************************************
 //	//*************************************************************************************************************
 //	
@@ -1735,8 +1732,7 @@ void GeneticPopulation::makeChildren() {
 #endif // SVG
 
 		crossover(parent0Idx, parent1Idx, childrenCount);
-
-		//mutate(children);
+		mutate(childrenCount);
 	}
 }
 
