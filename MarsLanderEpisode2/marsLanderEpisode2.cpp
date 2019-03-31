@@ -1777,17 +1777,13 @@ void GeneticPopulation::makeNextGeneration(
 
 		// Apply elitism, get the best chromosomes from the population and overwrite some children
 		elitsm();
-//	
-//	#ifdef SVG
-//		visualDebugGeneration(svgManager);
-//	#endif // SVG
-//	
-//		++populationId;
-//		population->clear();
-//		population->shrink_to_fit();
-//		population = &children;
-//	
-//		reset();
+
+	#ifdef SVG
+		visualDebugGeneration(svgManager);
+	#endif // SVG
+
+		reset();
+		++populationId;
 }
 
 
@@ -1808,11 +1804,17 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 //*************************************************************************************************************
 
 void GeneticPopulation::reset() {
-//	for (Chromosome& chromosome : population) {
-//		chromosome.resetFlags();
-//	}
-//
-//	evaluationSum = 0.f;
+	evaluationSum = 0.f;
+
+	// Switch population arrays
+	if (0 == (populationId % 2)) {
+		population = populationB;
+		newPopulation = populationA;
+	}
+	else {
+		population = populationA;
+		newPopulation = populationB;
+	}
 }
 
 //*************************************************************************************************************
