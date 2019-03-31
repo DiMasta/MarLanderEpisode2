@@ -987,7 +987,7 @@ public:
 	Chromosome& operator=(const Chromosome& other);
 
 	float evaluate(Surface* surface);
-	void addGene(const Gene& gene);
+	void insertGene(int geneIdx, const Gene& gene);
 	Gene getGene(int geneIdx) const;
 	void simulate(Surface* surface, bool& goodForLanding);
 	void mutate();
@@ -1280,8 +1280,8 @@ float Chromosome::evaluate(Surface* surface) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::addGene(const Gene& gene) {
-	// chromosome.emplace_back(gene);
+void Chromosome::insertGene(int geneIdx, const Gene& gene) {
+	chromosome[geneIdx] = gene; // Here copying is happening, which I'm not sure if is OK, have to measure, may be research moving semantic
 }
 
 //*************************************************************************************************************
@@ -1527,23 +1527,20 @@ GeneticPopulation::~GeneticPopulation() {
 //*************************************************************************************************************
 
 void GeneticPopulation::initRandomPopulation() {
-	int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
-	int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
+	const int maxAngleRand = (2 * MAX_ROTATION_ANGLE_STEP) + 1;
+	const int maxPowerRand = (2 * MAX_POWER_STEP) + 1;
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-
 			int randAngle = rand() % maxAngleRand;
 			int randPower = rand() % maxPowerRand;
 
 			randAngle += MIN_ROTATION_ANGLE_STEP;
 			randPower += MIN_POWER_STEP;
 
-			Gene gene(randAngle, randPower);
+			const Gene gene(randAngle, randPower);
 			insertGene(chromIdx, geneIdx, gene);
-			//chromosome.addGene(gene);
 		}
-		//population->emplace_back(chromosome);
 	}
 }
 
@@ -1734,7 +1731,7 @@ void GeneticPopulation::init(const Shuttle& shuttle) {
 //*************************************************************************************************************
 
 void GeneticPopulation::insertGene(int chromIdx, int geneIdx, const Gene& gene) {
-
+	population[chromIdx].insertGene(geneIdx, gene);
 }
 
 //*************************************************************************************************************
