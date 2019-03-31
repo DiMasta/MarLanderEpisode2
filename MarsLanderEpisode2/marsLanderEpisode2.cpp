@@ -795,7 +795,7 @@ void Shuttle::calculateComponents(
 
 void Shuttle::applyNewRotateAngle(int newRotateAngleStep) {
 	// First check if the ange change step is in the range [-15, 15]
-	// It may be outside of the range, after a crossoverb
+	// It may be outside of the range, after a crossover
 	int newRotateAngleStepClamped = min(max(MIN_ROTATION_ANGLE_STEP, newRotateAngleStep), MAX_ROTATION_ANGLE_STEP);
 	int newRotateAngle = rotate + newRotateAngleStepClamped;
 	
@@ -1463,12 +1463,12 @@ public:
 	/// @param[out] parent1Idx the second parent's index, which will be used for the crossover
 	void selectParentsIdxs(int& parent0Idx, int& parent1Idx);
 
-	//	/// Crossover pair of chromosomes to make new pair and add them to the new children
-	//	/// @param[in] parent0Idx the first parent's index, which will be used for the crossover
-	//	/// @param[in] parent1Idx the second parent's index, which will be used for the crossover
-	//	/// @param[out] children the new population of chromosomes in which the new created children will be added
-	//	void crossover(int parent0Idx, int parent1Idx, Chromosomes& children);
-	//	
+	/// Crossover pair of chromosomes to make new pair and add them to the new children
+	/// @param[in] parent0Idx the first parent's index, which will be used for the crossover
+	/// @param[in] parent1Idx the second parent's index, which will be used for the crossover
+	/// @param[in] childrenCount how many children are already created
+	void crossover(int parent0Idx, int parent1Idx, int childrenCount);
+
 	//	/// Mutate the last two chromosomes in the children array, they are the new from the crossover
 	//	/// @param[in/out] children the new children created from the crossover
 	//	void mutate(Chromosomes& children);
@@ -1515,6 +1515,9 @@ private:
 
 	/// Points to active population
 	Chromosome* population;
+
+	/// Points to newly created population
+	Chromosome* newPopulation;
 
 	/// Holds chromosomes' evaluations as keys and chromosomes' indecies as values
 	/// using map to hold this information, because every time a key is inserted it is stored in place (sorted)
@@ -1638,57 +1641,56 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 	}
 }
 
-//	//*************************************************************************************************************
-//	//*************************************************************************************************************
-//	
-//	void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, Chromosomes& children) {
-//		const Chromosome& parent0 = population->at(parent0Idx);
-//		const Chromosome& parent1 = population->at(parent1Idx);
-//	
-//		Chromosome child0;
-//		Chromosome child1;
-//	
-//		for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-//			const float beta = Math::randomFloatBetween0and1();
-//			const float parent0Rotate = static_cast<float>(parent0.getGene(geneIdx).rotate);
-//			const float parent1Rotate = static_cast<float>(parent1.getGene(geneIdx).rotate);
-//			const float parent0Power = static_cast<float>(parent0.getGene(geneIdx).power);
-//			const float parent1Power = static_cast<float>(parent1.getGene(geneIdx).power);
-//	
-//			float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
-//			float child1Rotation = ((1.f - beta) * parent0Rotate) + (beta * parent1Rotate);
-//			float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
-//			float child1Power = ((1.f - beta) * parent0Power) + (beta * parent1Power);
-//	
-//			Gene child0Gene;
-//			child0Gene.rotate = static_cast<int>(round(child0Rotation));
-//			child0Gene.power = static_cast<int>(round(child0Power));
-//	
-//			Gene child1Gene;
-//			child1Gene.rotate = static_cast<int>(round(child1Rotation));
-//			child1Gene.power = static_cast<int>(round(child1Power));
-//	
-//			child0.addGene(child0Gene);
-//			child1.addGene(child1Gene);
-//		}
-//	
-//		float r = Math::randomFloatBetween0and1();
-//		if (r <= PROBABILITY_OF_CROSSOVER) {
-//			children.push_back(child0);
-//		}
-//		else {
-//			children.push_back(parent0);
-//		}
-//	
-//		r = Math::randomFloatBetween0and1();
-//		if (r <= PROBABILITY_OF_CROSSOVER) {
-//			children.push_back(child1);
-//		}
-//		else {
-//			children.push_back(parent1);
-//		}
-//	}
-//	
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCount) {
+	const Chromosome& parent0 = population[parent0Idx];
+	const Chromosome& parent1 = population[parent1Idx];
+
+	const float crossoverRand0 = Math::randomFloatBetween0and1();
+	const float crossoverRand1 = Math::randomFloatBetween0and1();
+
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+		const Gene& parent0Gene = parent0.getGene(geneIdx);
+		const Gene& parent1Gene = parent1.getGene(geneIdx);
+
+		const float beta = Math::randomFloatBetween0and1();
+		const float parent0Rotate = static_cast<float>(parent0Gene.rotate);
+		const float parent1Rotate = static_cast<float>(parent1Gene.rotate);
+		const float parent0Power = static_cast<float>(parent0Gene.power);
+		const float parent1Power = static_cast<float>(parent1Gene.power);
+
+		float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
+		float child1Rotation = ((1.f - beta) * parent0Rotate) + (beta * parent1Rotate);
+		float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
+		float child1Power = ((1.f - beta) * parent0Power) + (beta * parent1Power);
+
+		Gene child0Gene;
+		child0Gene.rotate = static_cast<int>(round(child0Rotation));
+		child0Gene.power = static_cast<int>(round(child0Power));
+
+		Gene child1Gene;
+		child1Gene.rotate = static_cast<int>(round(child1Rotation));
+		child1Gene.power = static_cast<int>(round(child1Power));
+
+		if (crossoverRand0 <= PROBABILITY_OF_CROSSOVER) {
+			newPopulation[childrenCount].insertGene(geneIdx, child0Gene);
+		}
+		else {
+			newPopulation[childrenCount].insertGene(geneIdx, parent0Gene); // Just copying, may be room to improve
+		}
+
+		if (crossoverRand1 <= PROBABILITY_OF_CROSSOVER) {
+			newPopulation[childrenCount + 1].insertGene(geneIdx, child1Gene);
+		}
+		else {
+			newPopulation[childrenCount + 1].insertGene(geneIdx, parent1Gene); // Just copying, may be room to improve
+		}
+
+	}
+}
+
 //	//*************************************************************************************************************
 //	//*************************************************************************************************************
 //	
@@ -1732,9 +1734,8 @@ void GeneticPopulation::makeChildren() {
 		population[parent1Idx].setFlag(SELECTED_FLAG);
 #endif // SVG
 
-		// Maybe here a check if a valid pair of parents indecies is selected
-		//crossover(parent0Idx, parent1Idx, children);
-		//
+		crossover(parent0Idx, parent1Idx, childrenCount);
+
 		//mutate(children);
 	}
 }
@@ -1750,6 +1751,7 @@ void GeneticPopulation::init(const Shuttle& shuttle) {
 
 	// A strats as active population, for it random population will be made
 	population = populationA;
+	newPopulation = populationB;
 }
 
 //*************************************************************************************************************
