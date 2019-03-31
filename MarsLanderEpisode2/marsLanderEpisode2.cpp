@@ -1412,6 +1412,8 @@ bool Chromosome::checkIfGoodForLanding(const Shuttle& shuttleBeforeCrash, const 
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+typedef map<float, int> ChromEvalIdxMap;
+
 class GeneticPopulation {
 public:
 	GeneticPopulation();
@@ -1514,6 +1516,13 @@ private:
 
 	/// Points to active population
 	Chromosome* population;
+
+	/// Holds chromosomes' evaluations as keys and chromosomes' indecies as values
+	/// using map to hold this information, because every time a key is inserted it is stored in place (sorted)
+	/// the map is represented as tree and every time an element is inserted I think is faster and sorting whole array of chromosomes
+	/// TODO: measure the speed and if needed implement own hash map
+	ChromEvalIdxMap chromEvalIdxPairs;
+
 	Surface surface;
 
 	int populationId; /// For visual debug purposes
@@ -1781,12 +1790,13 @@ void GeneticPopulation::makeNextGeneration(
 void GeneticPopulation::prepareForRoulleteWheel() {
 	// normalize the evalutions
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
-		population[chromIdx].normalizeEvaluation(evaluationSum);
+		Chromosome& chromosome = population[chromIdx];
+		const float normalizedEvaluation = chromosome.getEvaluation() / evaluationSum;
+		chromosome.setEvaluation(normalizedEvaluation);
+
+		chromEvalIdxPairs[normalizedEvaluation] = chromIdx; // Is it good think to use floats as keys
 	}
 
-//	// sort the population's chromosome based on the cumulative sum
-//	sort(population->rbegin(), population->rend());
-//
 //	// calc the cumulative sum
 //	population->at(0).setEvaluation(1.f); // First chromosome always 1
 //	const int lastButOneIdx = static_cast<int>(population->size()) - 1 - 1;
