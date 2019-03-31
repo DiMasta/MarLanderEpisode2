@@ -991,7 +991,7 @@ public:
 
 	float evaluate(Surface* surface);
 	void insertGene(int geneIdx, const Gene& gene);
-	Gene getGene(int geneIdx) const;
+	const Gene& getGene(int geneIdx) const;
 	void simulate(const Surface& surface, bool& goodForLanding);
 	void mutate();
 	bool isValid();
@@ -1297,7 +1297,7 @@ void Chromosome::insertGene(int geneIdx, const Gene& gene) {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-Gene Chromosome::getGene(int geneIdx) const {
+const Gene& Chromosome::getGene(int geneIdx) const {
 	return chromosome[geneIdx];
 }
 
@@ -1473,10 +1473,8 @@ public:
 	/// @param[in] childrenCount how many children are already created
 	void mutate(int childrenCount);
 
-	//	/// Get the best chromosomes from the current population and pass them unchanged to the next
-	//	/// @param[in] population the current population
-	//	/// @param[out] the new generation
-	//	void elitsm(const Chromosomes& population, Chromosomes& children);
+	/// Get the best chromosomes from the current population and pass them unchanged to the next
+	void elitsm();
 
 	/// Use the Continuos Genetic Algorithm methods to make the children for the new generation
 	void makeChildren();
@@ -1495,6 +1493,11 @@ public:
 
 	/// Reset stats for each induvidual to the default values
 	void reset();
+
+	/// Plain copy chromosome: TODO: may be optimized
+	/// @param[in] destIdx the chromosome in the new population
+	/// @param[in] sourceIdx the chromosome in the old population
+	void copyChromosomeToNewPopulation(int destIdx, int sourceIdx);
 
 	/// Prepare for next turn
 	void turnEnd();
@@ -1700,17 +1703,21 @@ void GeneticPopulation::mutate(int childrenCount) {
 	newPopulation[childrenCount + 1].mutate();
 }
 
-//	//*************************************************************************************************************
-//	//*************************************************************************************************************
-//	
-//	void GeneticPopulation::elitsm(const Chromosomes& population, Chromosomes& children) {
-//		const int elitsCount = static_cast<int>(round(static_cast<float>(population.size()) * ELITISM_RATIO));
-//	
-//		// Chromosomes are sorted in descending order so the best elits are in the begining of the population
-//		for (int elitIdx = 0; elitIdx < elitsCount; ++elitIdx) {
-//			children[elitIdx] = population[elitIdx];
-//		}
-//	}
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::elitsm() {
+	const int elitsCount = static_cast<int>(POPULATION_SIZE * ELITISM_RATIO);
+
+	// Use the map, which holds sorted evaluations as keys
+	ChromEvalIdxMap::const_reverse_iterator it = chromEvalIdxPairs.rbegin();
+	for (int elitIdx = 0; elitIdx < elitsCount; ++elitIdx) {
+		const int chromosomeIdx = it->second;
+
+		copyChromosomeToNewPopulation(elitIdx, chromosomeIdx);
+		++it;
+	}
+}
 	
 //*************************************************************************************************************
 //*************************************************************************************************************
@@ -1766,11 +1773,10 @@ void GeneticPopulation::makeNextGeneration(
 	#endif // SVG
 	) {
 		prepareForRoulleteWheel();
-
 		makeChildren();
-//	
-//		// Apply elitism, get the best chromosomes from the population and overwrite some children
-//		elitsm(*population, children);
+
+		// Apply elitism, get the best chromosomes from the population and overwrite some children
+		elitsm();
 //	
 //	#ifdef SVG
 //		visualDebugGeneration(svgManager);
@@ -1796,17 +1802,6 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 
 		chromEvalIdxPairs[normalizedEvaluation] = chromIdx; // Is it good think to use floats as keys
 	}
-
-	// Cumulative sum will be calced as we go throug the array when selecting parents
-
-//	// calc the cumulative sum
-//	population->at(0).setEvaluation(1.f); // First chromosome always 1
-//	const int lastButOneIdx = static_cast<int>(population->size()) - 1 - 1;
-//	for (int chromIdx = lastButOneIdx; chromIdx > 0; --chromIdx) {
-//		Chromosome& lastChrom = population->at(chromIdx + 1);
-//		Chromosome& currentChrom = population->at(chromIdx);
-//		currentChrom.setEvaluation(currentChrom.getEvaluation() + lastChrom.getEvaluation());
-//	}
 }
 
 //*************************************************************************************************************
@@ -1818,6 +1813,15 @@ void GeneticPopulation::reset() {
 //	}
 //
 //	evaluationSum = 0.f;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void GeneticPopulation::copyChromosomeToNewPopulation(int destIdx, int sourceIdx) {
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+		newPopulation[destIdx].insertGene(geneIdx, population[sourceIdx].getGene(geneIdx));
+	}
 }
 
 //*************************************************************************************************************
