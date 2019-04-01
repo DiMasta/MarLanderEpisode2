@@ -69,7 +69,6 @@ const int CHILDREN_COUNT = POPULATION_SIZE;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 0.95f; // The probability to use the new child or transfer the parent directly
-const float CORRECT_THE_RANDOM_FOR_SELECTION = 0.0f; // Force the selection of more fit individuals
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -965,8 +964,13 @@ public:
 		return evaluation;
 	}
 
+	unsigned int getFlags() const {
+		return flags;
+	}
+
 	void setShuttle(const Shuttle& shuttle) { this->shuttle = shuttle; }
 	void setEvaluation(float evaluation) { this->evaluation = evaluation; }
+	void setFlags(unsigned int flags) { this->flags = flags; }
 
 	/// Reserve memory needed for the gene array of the Chromosome
 	/// Set the initial state of the shuttle
@@ -989,7 +993,7 @@ public:
 	bool operator<(const Chromosome& chromosome) const;
 	Chromosome& operator=(const Chromosome& other);
 
-	float evaluate(Surface* surface);
+	float evaluate(const Surface& surface);
 	void insertGene(int geneIdx, const Gene& gene);
 	const Gene& getGene(int geneIdx) const;
 	void simulate(const Surface& surface, bool& goodForLanding);
@@ -1224,7 +1228,7 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-float Chromosome::evaluate(Surface* surface) {
+float Chromosome::evaluate(const Surface& surface) {
 	const Coord xPos = shuttle.getPosition().getXCoord();
 	const Coord yPos = shuttle.getPosition().getYCoord();
 	const bool validXPos = xPos >= 0 && xPos < MAP_WIDTH;
@@ -1247,7 +1251,7 @@ float Chromosome::evaluate(Surface* surface) {
 
 	if (!hasFlag(CRASHED_ON_LANDING_ZONE_FLAG)) {
 		// 0-100: crashed somewhere, calculate score by distance to landing area
-		const float distance = surface->findDistanceToLandingZone(shuttle.getPosition(), getCrashedLineIdx());
+		const float distance = surface.findDistanceToLandingZone(shuttle.getPosition(), getCrashedLineIdx());
 
 		// Calculate score from distance
 		evaluation = 100.f - (100.f * distance / MAX_DISTANCE);
@@ -1432,7 +1436,6 @@ public:
 	}
 
 	void setSurface(const Surface& surface) { this->surface = surface; }
-	void setChromosomes(Chromosome* population) { this->population = population; }
 
 	/// Reserve memory for 2 populations
 	/// All chromosomes for all populations will use one indentical initial shuttle and modified it when simulating it
@@ -1525,7 +1528,8 @@ private:
 	/// Holds chromosomes' evaluations as keys and chromosomes' indecies as values
 	/// using map to hold this information, because every time a key is inserted it is stored in place (sorted)
 	/// the map is represented as tree and every time an element is inserted I think is faster and sorting whole array of chromosomes
-	/// TODO: measure the speed and if needed implement own hash map
+	/// TODO: measure the speed and if needed implement own hash map, no easy way to reserve map elements in advance,
+	/// but I think map of floats and ints shouldn't be the bottle neck of the program
 	ChromEvalIdxMap chromEvalIdxPairs;
 
 	Surface surface;
@@ -1576,24 +1580,24 @@ void GeneticPopulation::initRandomPopulation() {
 bool GeneticPopulation::simulate(const Shuttle& shuttle, int& solutionChromIdx) {
 	bool foundResChromosome = false;
 
-	for (size_t chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		Chromosome& chromosome = population[chromIdx];
 
 		// TODO: Better way to check for parent
 		if (chromosome.hasFlag(CRASHED_FLAG)) {
 			// Directly transfered parent
-			evaluationSum += chromosome.evaluate(&surface); // Reset evaluation, because it was modified to fit the roullete wheel
+			evaluationSum += chromosome.evaluate(surface); // Reset evaluation, because it was modified to fit the roullete wheel
 			continue;
 		}
 
 		chromosome.simulate(surface, foundResChromosome);
 
 		if (foundResChromosome) {
-			solutionChromIdx = static_cast<int>(chromIdx);
+			solutionChromIdx = chromIdx;
 			break;
 		}
 
-		evaluationSum += chromosome.evaluate(&surface);
+		evaluationSum += chromosome.evaluate(surface);
 	}
 
 	return foundResChromosome;
@@ -1664,10 +1668,10 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCo
 		const float parent0Power = static_cast<float>(parent0Gene.power);
 		const float parent1Power = static_cast<float>(parent1Gene.power);
 
-		float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
-		float child1Rotation = ((1.f - beta) * parent0Rotate) + (beta * parent1Rotate);
-		float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
-		float child1Power = ((1.f - beta) * parent0Power) + (beta * parent1Power);
+		const float child0Rotation = (beta * parent0Rotate) + ((1.f - beta) * parent1Rotate);
+		const float child1Rotation = ((1.f - beta) * parent0Rotate) + (beta * parent1Rotate);
+		const float child0Power = (beta * parent0Power) + ((1.f - beta) * parent1Power);
+		const float child1Power = ((1.f - beta) * parent0Power) + (beta * parent1Power);
 
 		Gene child0Gene;
 		child0Gene.rotate = static_cast<int>(round(child0Rotation));
@@ -1690,7 +1694,6 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCo
 		else {
 			newPopulation[childrenCount + 1].insertGene(geneIdx, parent1Gene); // Just copying, may be room to improve
 		}
-
 	}
 }
 
@@ -1718,7 +1721,7 @@ void GeneticPopulation::elitsm() {
 		++it;
 	}
 }
-	
+
 //*************************************************************************************************************
 //*************************************************************************************************************
 
@@ -1805,6 +1808,7 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 
 void GeneticPopulation::reset() {
 	evaluationSum = 0.f;
+	chromEvalIdxPairs.clear();
 
 	// Switch population arrays
 	if (0 == (populationId % 2)) {
@@ -1821,8 +1825,14 @@ void GeneticPopulation::reset() {
 //*************************************************************************************************************
 
 void GeneticPopulation::copyChromosomeToNewPopulation(int destIdx, int sourceIdx) {
+	const Chromosome& sourceChromosome = population[sourceIdx];
+	Chromosome& destinationChromosome = newPopulation[destIdx];
+
+	destinationChromosome.setEvaluation(sourceChromosome.getEvaluation());
+	destinationChromosome.setFlags(sourceChromosome.getFlags());
+	destinationChromosome.setShuttle(sourceChromosome.getShuttle());
 	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
-		newPopulation[destIdx].insertGene(geneIdx, population[sourceIdx].getGene(geneIdx));
+		destinationChromosome.insertGene(geneIdx, sourceChromosome.getGene(geneIdx));
 	}
 }
 
