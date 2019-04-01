@@ -15,11 +15,11 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
+//#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
-#define DEBUG_ONE_TURN
+//#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
 
@@ -64,7 +64,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 4;//250;
+const int MAX_POPULATION = 100;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 0.95f; // The probability to use the new child or transfer the parent directly
@@ -996,7 +996,13 @@ public:
 	float evaluate(const Surface& surface);
 	void insertGene(int geneIdx, const Gene& gene);
 	const Gene& getGene(int geneIdx) const;
-	void simulate(const Surface& surface, bool& goodForLanding);
+
+	/// Simulate the flight of the shuttle if solution is found return the needed information
+	/// @param[in] surface the landing surface
+	/// @param[out] goodForLanding bool if good for landing
+	/// @param[out] lastGene the last gene, form the solution, which should be ignored
+	void simulate(const Surface& surface, bool& goodForLanding, int& lastGene);
+
 	void mutate();
 	bool isValid();
 
@@ -1308,7 +1314,7 @@ const Gene& Chromosome::getGene(int geneIdx) const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-void Chromosome::simulate(const Surface& surface, bool& goodForLanding) {
+void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& lastGene) {
 #ifdef SVG
 	path.clear();
 #endif // SVG
@@ -1316,7 +1322,7 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding) {
 	// Use the last postion for shuttle to define a line and check if it crosses a surface line
 	Shuttle previousShuttle;
 
-	for (size_t geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 		const Gene& gene = chromosome[geneIdx];
 		shuttle.simulate(gene.rotate, gene.power);
 
@@ -1338,10 +1344,7 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding) {
 					goodForLanding = checkIfGoodForLanding(previousShuttle, shuttle);
 					if (goodForLanding) {
 						// Ignore the gene which is after the crash
-						//chromosome.erase(chromosome.begin() + geneIdx, chromosome.end());
-						int debug = 0;
-						++debug;
-
+						lastGene = geneIdx;
 #ifdef SVG
 						for (size_t coordsIdx = 0; coordsIdx < path.size(); ++coordsIdx) {
 							cout << '(' << path[coordsIdx].getXCoord() << ',' << path[coordsIdx].getYCoord() << "),";
@@ -1484,7 +1487,8 @@ public:
 
 	/// Simulate all Chromosomes, using the commands from each gene to move the given shuttle
 	/// @param[out] solutionChromIdx the solution chromosome index
-	bool simulate(int& solutionChromIdx);
+	/// @param[out] lastGene the last gene, from the solution, which shloud be ignored
+	bool simulate(int& solutionChromIdx, int& lastGene);
 
 	/// Prepare the population for the roullete wheel selection:
 	///		- calc the sum of evaluations
@@ -1576,7 +1580,7 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool GeneticPopulation::simulate(int& solutionChromIdx) {
+bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 	bool foundResChromosome = false;
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
@@ -1589,7 +1593,7 @@ bool GeneticPopulation::simulate(int& solutionChromIdx) {
 			continue;
 		}
 
-		chromosome.simulate(surface, foundResChromosome);
+		chromosome.simulate(surface, foundResChromosome, lastGene);
 
 		if (foundResChromosome) {
 			solutionChromIdx = chromIdx;
@@ -1938,6 +1942,9 @@ private:
 	/// The solution of the GA
 	int solutionChromIdx;
 
+	/// The last gene, form the solution, which should be ignored
+	int lastGene;
+
 	/// Which gene to output from the chromosome solution
 	int turnGeneIdx;
 
@@ -1957,6 +1964,7 @@ Game::Game() :
 	surface(),
 	geneticPopulation(),
 	solutionChromIdx(INVALID_ID),
+	lastGene(INVALID_ID),
 	turnGeneIdx(0)
 #ifdef SVG
 	,svgManager()
@@ -2116,7 +2124,7 @@ void Game::turnBegin() {
 
 	bool answerFound = false;
 	while (!answerFound && geneticPopulation.getPopulationId() <= MAX_POPULATION) {
-		answerFound = geneticPopulation.simulate(solutionChromIdx);
+		answerFound = geneticPopulation.simulate(solutionChromIdx, lastGene);
 
 		if (answerFound) {
 #ifdef SVG
@@ -2138,53 +2146,50 @@ void Game::turnBegin() {
 //*************************************************************************************************************
 
 void Game::makeTurn(bool& notDone) {
-//#ifdef SVG
-//	if (INVALID_ID != solutionChromIdx) {
-//		notDone = false;
-//		return;
-//	}
-//#endif // SVG
-//
-//	int solutionIdx = solutionChromIdx;
-//	if (INVALID_ID == solutionChromIdx) {
-//		solutionChromIdx = 0; // Override the solution value, no time to simulate in each turn
-//		solutionIdx = 0;
-//	}
-//
-//	const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
-//	const Genes& solutionGenes = solutionChromosome.getGenesRef();
-//	const int genesCount = static_cast<int>(solutionGenes.size());
-//	
-//	char separator = ' ';
-//#ifdef SIMULATION_OUTPUT
-//	separator = ',';
-//#endif // SIMULATION_OUTPUT
-//
-//	if (turnGeneIdx < genesCount) {
-//		shuttle.applyNewRotateAngle(solutionGenes[turnGeneIdx].rotate);
-//		shuttle.applyNewPower(solutionGenes[turnGeneIdx].power);
-//
-//		lastPower = shuttle.getPower();
-//		cout << shuttle.getRotate() << separator << lastPower << endl;
-//	}
-//	else if (turnGeneIdx == genesCount) {
-//		cout << 0 << separator << lastPower << endl;
-//	}
-//	else {
-//		cout << 0 << separator << 0 << endl;
-//	}
-//
-//	if (INVALID_ID != solutionChromIdx) {
-//		++turnGeneIdx;
-//	}
-//
-//#ifdef SIMULATION_OUTPUT
-//	cout << ',';
-//#endif // SIMULATION_OUTPUT
-//
-//	if (turnsCount > genesCount + ADDITIONAL_TURNS) {
-//		notDone = false;
-//	}
+#ifdef SVG
+	if (INVALID_ID != solutionChromIdx) {
+		notDone = false;
+		return;
+	}
+#endif // SVG
+
+	int solutionIdx = solutionChromIdx;
+	if (INVALID_ID == solutionChromIdx) {
+		solutionChromIdx = 0; // Override the solution value, if no time to simulate in each turn
+		solutionIdx = 0;
+	}
+
+	char separator = ' ';
+#ifdef SIMULATION_OUTPUT
+	separator = ',';
+#endif // SIMULATION_OUTPUT
+
+	if (turnGeneIdx < lastGene) {
+		const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
+		shuttle.applyNewRotateAngle(solutionChromosome.getGene(turnGeneIdx).rotate);
+		shuttle.applyNewPower(solutionChromosome.getGene(turnGeneIdx).power);
+
+		lastPower = shuttle.getPower();
+		cout << shuttle.getRotate() << separator << lastPower << endl;
+	}
+	else if (turnGeneIdx == lastGene) {
+		cout << 0 << separator << lastPower << endl;
+	}
+	else {
+		cout << 0 << separator << 0 << endl;
+	}
+
+	if (INVALID_ID != solutionChromIdx) {
+		++turnGeneIdx;
+	}
+
+#ifdef SIMULATION_OUTPUT
+	cout << ',';
+#endif // SIMULATION_OUTPUT
+
+	if (turnsCount > lastGene + ADDITIONAL_TURNS) {
+		notDone = false;
+	}
 }
 
 //*************************************************************************************************************
