@@ -15,11 +15,11 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
+#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
-//#define DEBUG_ONE_TURN
+#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
 
@@ -64,8 +64,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 300;//250;
-const int CHILDREN_COUNT = POPULATION_SIZE;
+const int MAX_POPULATION = 4;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 0.95f; // The probability to use the new child or transfer the parent directly
@@ -92,6 +91,7 @@ const int SELECTED_FLAG = 1;						// 1
 const int SOLUTION_FLAG = 1 << 1;					// 2
 const int CRASHED_ON_LANDING_ZONE_FLAG = 1 << 2;	// 4
 const int CRASHED_FLAG = 1 << 4;					// 8
+const int COPIED_FLAG = 1 << 5;						// 16
 
 ///Global variables
 int INITIAL_FUEL = 0; // Use static member for the initual fuel it is used only in Chromosome::evaluate
@@ -1007,12 +1007,12 @@ public:
 		return path;
 	}
 
-
 	float getOriginalEvaluation() const {
 		return originalEvaluation;
 	}
 
 	void setPath(const Path& path) { this->path = path; }
+	void setOriginalEvaluation(float originalEvaluation) { this->originalEvaluation = originalEvaluation; }
 
 	string constructSVGData(const SVGManager& svgManager) const;
 #endif // SVG
@@ -1483,9 +1483,8 @@ public:
 	void makeChildren();
 
 	/// Simulate all Chromosomes, using the commands from each gene to move the given shuttle
-	/// @param[in] shuttle the shuttle, for which the simulation is done TODO: do not use pointer
 	/// @param[out] solutionChromIdx the solution chromosome index
-	bool simulate(const Shuttle& shuttle, int& solutionChromIdx);
+	bool simulate(int& solutionChromIdx);
 
 	/// Prepare the population for the roullete wheel selection:
 	///		- calc the sum of evaluations
@@ -1577,16 +1576,16 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool GeneticPopulation::simulate(const Shuttle& shuttle, int& solutionChromIdx) {
+bool GeneticPopulation::simulate(int& solutionChromIdx) {
 	bool foundResChromosome = false;
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
 		Chromosome& chromosome = population[chromIdx];
 
-		// TODO: Better way to check for parent
-		if (chromosome.hasFlag(CRASHED_FLAG)) {
+		if (chromosome.hasFlag(COPIED_FLAG)) {
 			// Directly transfered parent
 			evaluationSum += chromosome.evaluate(surface); // Reset evaluation, because it was modified to fit the roullete wheel
+			chromosome.unsetFlag(COPIED_FLAG); // Do not consider chromosome copied anymore
 			continue;
 		}
 
@@ -1608,7 +1607,7 @@ bool GeneticPopulation::simulate(const Shuttle& shuttle, int& solutionChromIdx) 
 
 void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 #ifdef SVG
-	if (2 == population.size()) {
+	if (2 == POPULATION_SIZE) {
 		parent0Idx = 0;
 		parent1Idx = 1;
 
@@ -1652,11 +1651,27 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 //*************************************************************************************************************
 
 void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCount) {
-	const Chromosome& parent0 = population[parent0Idx];
-	const Chromosome& parent1 = population[parent1Idx];
-
 	const float crossoverRand0 = Math::randomFloatBetween0and1();
 	const float crossoverRand1 = Math::randomFloatBetween0and1();
+
+	bool useParent0 = false;
+	if (crossoverRand0 > PROBABILITY_OF_CROSSOVER) {
+		copyChromosomeToNewPopulation(childrenCount, parent0Idx);
+		useParent0 = true;
+	}
+
+	bool useParent1 = false;
+	if (crossoverRand1 > PROBABILITY_OF_CROSSOVER) {
+		copyChromosomeToNewPopulation(childrenCount + 1, parent1Idx);
+		useParent1 = true;
+	}
+
+	if (useParent0 && useParent1) {
+		return;
+	}
+
+	const Chromosome& parent0 = population[parent0Idx];
+	const Chromosome& parent1 = population[parent1Idx];
 
 	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 		const Gene& parent0Gene = parent0.getGene(geneIdx);
@@ -1684,15 +1699,9 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCo
 		if (crossoverRand0 <= PROBABILITY_OF_CROSSOVER) {
 			newPopulation[childrenCount].insertGene(geneIdx, child0Gene);
 		}
-		else {
-			newPopulation[childrenCount].insertGene(geneIdx, parent0Gene); // Just copying, may be room to improve
-		}
 
 		if (crossoverRand1 <= PROBABILITY_OF_CROSSOVER) {
 			newPopulation[childrenCount + 1].insertGene(geneIdx, child1Gene);
-		}
-		else {
-			newPopulation[childrenCount + 1].insertGene(geneIdx, parent1Gene); // Just copying, may be room to improve
 		}
 	}
 }
@@ -1771,22 +1780,22 @@ void GeneticPopulation::insertGene(int chromIdx, int geneIdx, const Gene& gene) 
 //*************************************************************************************************************
 
 void GeneticPopulation::makeNextGeneration(
-	#ifdef SVG
-		SVGManager& svgManager
-	#endif // SVG
-	) {
-		prepareForRoulleteWheel();
-		makeChildren();
+#ifdef SVG
+	SVGManager& svgManager
+#endif // SVG
+) {
+	prepareForRoulleteWheel();
+	makeChildren();
 
-		// Apply elitism, get the best chromosomes from the population and overwrite some children
-		elitsm();
+	// Apply elitism, get the best chromosomes from the population and overwrite some children
+	elitsm();
 
-	#ifdef SVG
-		visualDebugGeneration(svgManager);
-	#endif // SVG
+#ifdef SVG
+	visualDebugGeneration(svgManager);
+#endif // SVG
 
-		reset();
-		++populationId;
+	reset();
+	++populationId;
 }
 
 
@@ -1809,6 +1818,14 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 void GeneticPopulation::reset() {
 	evaluationSum = 0.f;
 	chromEvalIdxPairs.clear();
+
+	// If copied directly from previous population do not reset
+	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
+		Chromosome& chromosome = newPopulation[chromIdx];
+		if (!chromosome.hasFlag(COPIED_FLAG)) {
+			chromosome.reset();
+		}
+	}
 
 	// Switch population arrays
 	if (0 == (populationId % 2)) {
@@ -1834,6 +1851,14 @@ void GeneticPopulation::copyChromosomeToNewPopulation(int destIdx, int sourceIdx
 	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 		destinationChromosome.insertGene(geneIdx, sourceChromosome.getGene(geneIdx));
 	}
+
+	// Set at the end of copying to not be overwritten
+	destinationChromosome.setFlag(COPIED_FLAG);
+
+#ifdef SVG
+	destinationChromosome.setPath(sourceChromosome.getPath());
+	destinationChromosome.setOriginalEvaluation(sourceChromosome.getOriginalEvaluation());
+#endif // SVG
 }
 
 //*************************************************************************************************************
@@ -1849,7 +1874,6 @@ void GeneticPopulation::turnEnd() {
 
 #ifdef SVG
 void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
-
 	string populationSVGData = constructSVGData(svgManager);
 	string populationIdSVGData = svgManager.constructGId(populationId);
 	svgManager.filePrintStr(populationIdSVGData);
@@ -1867,7 +1891,7 @@ void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
 string GeneticPopulation::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = "";
 
-	for (size_t chromeIdx = 0; chromeIdx < population.size(); ++chromeIdx) {
+	for (int chromeIdx = 0; chromeIdx < POPULATION_SIZE; ++chromeIdx) {
 		const Chromosome& chromosome = population[chromeIdx];
 		if (chromosome.getShuttle().getPosition().isValid()) {
 			string chromeSVGData = chromosome.constructSVGData(svgManager);
@@ -1959,7 +1983,7 @@ void Game::gameBegin() {
 	geneticPopulation.setSurface(surface);
 
 #ifdef SVG
-	string surfaceSVGData = surface->constructSVGData(svgManager);
+	string surfaceSVGData = surface.constructSVGData(svgManager);
 	svgManager.filePrintStr(surfaceSVGData);
 #endif // SVG
 }
@@ -2092,7 +2116,7 @@ void Game::turnBegin() {
 
 	bool answerFound = false;
 	while (!answerFound && geneticPopulation.getPopulationId() <= MAX_POPULATION) {
-		answerFound = geneticPopulation.simulate(shuttle, solutionChromIdx);
+		answerFound = geneticPopulation.simulate(solutionChromIdx);
 
 		if (answerFound) {
 #ifdef SVG
