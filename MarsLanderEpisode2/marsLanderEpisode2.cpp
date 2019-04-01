@@ -64,7 +64,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300;
 const int POPULATION_SIZE = 90;
-const int MAX_POPULATION = 100;//250;
+const int MAX_POPULATION = 500;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 0.95f; // The probability to use the new child or transfer the parent directly
@@ -145,11 +145,11 @@ public:
 	Coords();
 	Coords(Coord xCoord, Coord yCoord);
 
-	Coord getXCoord() const {
+	const Coord& getXCoord() const {
 		return xCoord;
 	}
 
-	Coord getYCoord() const {
+	const Coord& getYCoord() const {
 		return yCoord;
 	}
 
