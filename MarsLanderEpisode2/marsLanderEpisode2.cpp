@@ -15,10 +15,10 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
+#define SVG
+#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
+#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -62,12 +62,12 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 100;//300;
-const int POPULATION_SIZE = 70;
+const int CHROMOSOME_SIZE = 150;//300;
+const int POPULATION_SIZE = 100;
 const int MAX_POPULATION = 500;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
-const float PROBABILITY_OF_CROSSOVER = 0.95f; // The probability to use the new child or transfer the parent directly
+const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
 
 const int INVALID_ROTATION_ANGLE = 100;
 const int INVALID_POWER = -1;
@@ -83,7 +83,7 @@ const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
 const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
-const int CHECK_FOR_CRASH_AFTER_GENE = 0;
+const int CHECK_FOR_CRASH_AFTER_GENE = 10;
 
 const unsigned int CRASHED_IDX_MASK = 0b1111'1000'0000'0000'0000'0000'0000'0000;
 const int CRASHED_IDX_MASK_OFFSET = 27;
@@ -1656,21 +1656,21 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCo
 	const float crossoverRand0 = Math::randomFloatBetween0and1();
 	const float crossoverRand1 = Math::randomFloatBetween0and1();
 
-	bool useParent0 = false;
-	if (crossoverRand0 > PROBABILITY_OF_CROSSOVER) {
-		copyChromosomeToNewPopulation(childrenCount, parent0Idx);
-		useParent0 = true;
-	}
-
-	bool useParent1 = false;
-	if (crossoverRand1 > PROBABILITY_OF_CROSSOVER) {
-		copyChromosomeToNewPopulation(childrenCount + 1, parent1Idx);
-		useParent1 = true;
-	}
-
-	if (useParent0 && useParent1) {
-		return;
-	}
+	//bool useParent0 = false;
+	//if (crossoverRand0 > PROBABILITY_OF_CROSSOVER) {
+	//	copyChromosomeToNewPopulation(childrenCount, parent0Idx);
+	//	useParent0 = true;
+	//}
+	//
+	//bool useParent1 = false;
+	//if (crossoverRand1 > PROBABILITY_OF_CROSSOVER) {
+	//	copyChromosomeToNewPopulation(childrenCount + 1, parent1Idx);
+	//	useParent1 = true;
+	//}
+	//
+	//if (useParent0 && useParent1) {
+	//	return;
+	//}
 
 	const Chromosome& parent0 = population[parent0Idx];
 	const Chromosome& parent1 = population[parent1Idx];
@@ -1698,13 +1698,13 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCo
 		child1Gene.rotate = static_cast<int>(round(child1Rotation));
 		child1Gene.power = static_cast<int>(round(child1Power));
 
-		if (crossoverRand0 <= PROBABILITY_OF_CROSSOVER) {
+		//if (crossoverRand0 <= PROBABILITY_OF_CROSSOVER) {
 			newPopulation[childrenCount].insertGene(geneIdx, child0Gene);
-		}
+		//}
 
-		if (crossoverRand1 <= PROBABILITY_OF_CROSSOVER) {
+		//if (crossoverRand1 <= PROBABILITY_OF_CROSSOVER) {
 			newPopulation[childrenCount + 1].insertGene(geneIdx, child1Gene);
-		}
+		//}
 	}
 }
 
