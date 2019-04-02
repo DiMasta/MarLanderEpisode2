@@ -16,9 +16,9 @@
 #include <iterator>
 
 //#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -63,7 +63,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 100;//300;
-const int POPULATION_SIZE = 90;
+const int POPULATION_SIZE = 70;
 const int MAX_POPULATION = 500;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
@@ -1622,14 +1622,13 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 
 	float cumulativeSum = 0.f;
 	parent0Idx = chromEvalIdxPairs.rbegin()->second; // If r is too big the loop will break before setting the parentIdx
-	for (ChromEvalIdxMap::const_reverse_iterator it = chromEvalIdxPairs.rbegin(); it != chromEvalIdxPairs.rend(); ++it) {
-		const float cumulativeEvaluation = 1.f - cumulativeSum;
-		if (r > cumulativeEvaluation) {
+	for (ChromEvalIdxMap::const_iterator it = chromEvalIdxPairs.begin(); it != chromEvalIdxPairs.end(); ++it) {
+		cumulativeSum += it->first;
+		parent0Idx = it->second;
+
+		if (r < cumulativeSum) {
 			break;
 		}
-
-		parent0Idx = it->second; // Will be the last index
-		cumulativeSum += it->first; // TODO: this addition is done every time the population is iterated not sure if it is bottleneck
 	}
 
 	parent1Idx = parent0Idx;
@@ -1639,14 +1638,13 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 		cumulativeSum = 0.f;
 		parent1Idx = chromEvalIdxPairs.rbegin()->second; // If r is too big the loop will break before setting the parentIdx
 		// Code duplication, at the moment I cannot think of more elegant layout
-		for (ChromEvalIdxMap::const_reverse_iterator it = chromEvalIdxPairs.rbegin(); it != chromEvalIdxPairs.rend(); ++it) {
-			const float cumulativeEvaluation = 1.f - cumulativeSum;
-			if (r > cumulativeEvaluation) {
+		for (ChromEvalIdxMap::const_iterator it = chromEvalIdxPairs.begin(); it != chromEvalIdxPairs.end(); ++it) {
+			cumulativeSum += it->first;
+			parent1Idx = it->second;
+
+			if (r < cumulativeSum) {
 				break;
 			}
-
-			parent1Idx = it->second; // Will be the last index
-			cumulativeSum += it->first;
 		}
 	}
 }
