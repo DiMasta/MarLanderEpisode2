@@ -15,7 +15,7 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
+//#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
@@ -84,6 +84,7 @@ const int MAX_H_SPEED_FOR_LANDING = 20;
 const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
 const int CHECK_FOR_CRASH_AFTER_GENE = 10;
+const int MAX_LINES = 30;
 
 const unsigned int CRASHED_IDX_MASK = 0b1111'1000'0000'0000'0000'0000'0000'0000;
 const int CRASHED_IDX_MASK_OFFSET = 27;
@@ -424,31 +425,16 @@ bool Line::pointBelow(const Coords& landerPoint) const {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-typedef vector<Line> Lines;
-
 class Surface {
 public:
 	Surface();
 	~Surface();
 
-	Lines getLines() const {
-		return lines;
-	}
-
-	float getMaxDistance() const {
-		return maxDistance;
-	}
-
-	int getMaxLandY() const {
-		return maxLandY;
-	}
-
-	void setLines(const Lines& lines) { this->lines = lines; }
-	void setMaxDistance(float maxDistance) { this->maxDistance = maxDistance; }
-	void setMaxLandY(int maxLandY) { this->maxLandY = maxLandY; }
- 
 	int getLinesCount() const;
-	Line getLine(int lineIdx) const;
+
+	void setLinesCount(int linesCount) {
+		this->linesCount = linesCount;
+	}
 
 	/// Check if the given line described with two points crosses with a line from the Mars surface
 	/// @param[in] point0 the first point of the line to check
@@ -476,19 +462,16 @@ public:
 #endif // SVG
 
 private:
-	Lines lines;
-	float maxDistance;
-	int maxLandY; /// This tells when check if a shuttle could colide with surface
-	int landingAreaLineIdx;
+	Line lines[MAX_LINES]; /// Native C++ array to hold the level linees
+	int linesCount; /// Lines in current level
+	int landingAreaLineIdx; /// Index of the landing area line
 };
 
 //*************************************************************************************************************
 //*************************************************************************************************************
 
 Surface::Surface() :
-	lines(),
-	maxDistance(0.f),
-	maxLandY(0),
+	linesCount(0),
 	landingAreaLineIdx(INVALID_ID)
 {
 
@@ -505,14 +488,7 @@ Surface::~Surface() {
 //*************************************************************************************************************
 
 int Surface::getLinesCount() const {
-	return int(lines.size());
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-Line Surface::getLine(int lineIdx) const {
-	return lines[lineIdx];
+	return linesCount;
 }
 
 //*************************************************************************************************************
@@ -525,7 +501,7 @@ int Surface::collisionWithSurface(
 ) const {
 	int crashLineIdx = INVALID_ID;
 
-	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
+	for (size_t lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
 		const Line& line = lines[lineIdx];
 
 		const Coord& p0x = point0.getXCoord();
@@ -577,7 +553,7 @@ void Surface::addLine(
 		line.setLandingZoneDirection(LZD_HERE);
 	}
 
-	lines.push_back(line);
+	lines[lineIdx] = line;
 }
 
 //*************************************************************************************************************
@@ -2018,6 +1994,7 @@ void Game::gameLoop() {
 void Game::getGameInput() {
 	int surfaceN; // the number of points used to draw the surface of Mars.
 	cin >> surfaceN;
+	surface.setLinesCount(surfaceN - 1); // Minus 1, because this is the count of points forming the lines
 
 #ifdef OUTPUT_GAME_DATA
 		cerr << surfaceN << endl;
@@ -2037,10 +2014,6 @@ void Game::getGameInput() {
 		int landX; // X coordinate of a surface point. (0 to 6999)
 		int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
 		cin >> landX >> landY; cin.ignore();
-
-		if (surface.getMaxLandY() < landY) {
-			surface.setMaxLandY(landY);
-		}
 
 #ifdef OUTPUT_GAME_DATA
 			cerr << landX << " " << landY << endl;
@@ -2063,13 +2036,6 @@ void Game::getGameInput() {
 		}
 
 		point0 = point1;
-	}
-
-	if (leftDistToLandingZone > rightDistToLandingZone) {
-		surface.setMaxDistance(leftDistToLandingZone);
-	}
-	else {
-		surface.setMaxDistance(rightDistToLandingZone);
 	}
 }
 
