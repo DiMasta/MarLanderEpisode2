@@ -62,7 +62,7 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 150;//300;
+const int CHROMOSOME_SIZE = 200;//300;
 const int POPULATION_SIZE = 100;
 const int MAX_POPULATION = 500;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
@@ -83,7 +83,7 @@ const int MAX_V_SPEED_FOR_LANDING = 40;
 const int MAX_H_SPEED_FOR_LANDING = 20;
 const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
-const int CHECK_FOR_CRASH_AFTER_GENE = 10;
+const int CHECK_FOR_CRASH_AFTER_GENE = 15;
 const int MAX_LINES = 30;
 
 const unsigned int CRASHED_IDX_MASK = 0b1111'1000'0000'0000'0000'0000'0000'0000;
@@ -146,11 +146,11 @@ public:
 	Coords();
 	Coords(Coord xCoord, Coord yCoord);
 
-	const Coord& getXCoord() const {
+	inline Coord getXCoord() const {
 		return xCoord;
 	}
 
-	const Coord& getYCoord() const {
+	inline Coord getYCoord() const {
 		return yCoord;
 	}
 
@@ -295,11 +295,11 @@ public:
 	Line(const Coords& point0, const Coords& point1, int landingZoneDirection);
 	~Line();
 
-	Coords getPoint0() const {
+	inline Coords getPoint0() const {
 		return point0;
 	}
 
-	Coords getPoint1() const {
+	inline Coords getPoint1() const {
 		return point1;
 	}
 
@@ -504,15 +504,15 @@ int Surface::collisionWithSurface(
 	for (size_t lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
 		const Line& line = lines[lineIdx];
 
-		const Coord& p0x = point0.getXCoord();
-		const Coord& p0y = point0.getYCoord();
-		const Coord& p1x = point1.getXCoord();
-		const Coord& p1y = point1.getYCoord();
+		const Coord p0x = point0.getXCoord();
+		const Coord p0y = point0.getYCoord();
+		const Coord p1x = point1.getXCoord();
+		const Coord p1y = point1.getYCoord();
 
-		const Coord& p2x = line.getPoint0().getXCoord();
-		const Coord& p2y = line.getPoint0().getYCoord();
-		const Coord& p3x = line.getPoint1().getXCoord();
-		const Coord& p3y = line.getPoint1().getYCoord();
+		const Coord p2x = line.getPoint0().getXCoord();
+		const Coord p2y = line.getPoint0().getYCoord();
+		const Coord p3x = line.getPoint1().getXCoord();
+		const Coord p3y = line.getPoint1().getYCoord();
 
 		const Coord s1x = p1x - p0x;
 		const Coord s1y = p1y - p0y;
@@ -563,7 +563,7 @@ void Surface::addLine(
 string Surface::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = POLYLINE_BEGIN;
 
-	for (size_t lineIdx = 0; lineIdx < lines.size(); ++lineIdx) {
+	for (size_t lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
 		Line line = lines[lineIdx];
 		Coord startX = line.getPoint0().getXCoord();
 		Coord startY = MAP_HEIGHT - line.getPoint0().getYCoord();
