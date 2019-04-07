@@ -15,7 +15,7 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
+#define SVG
 #define REDIRECT_CIN_FROM_FILE
 #define REDIRECT_COUT_TO_FILE
 #define SIMULATION_OUTPUT
@@ -62,10 +62,10 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 200;//300;
-const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 500;//250;
-const float ELITISM_RATIO = 0.1f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
+const int CHROMOSOME_SIZE = 300;//300;
+const int POPULATION_SIZE = 200;
+const int MAX_POPULATION = 10000;//250;
+const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
 
@@ -1179,7 +1179,8 @@ float Chromosome::evaluate(const Surface& surface) {
 		const float speedPen = 0.1f * max(currentSpeed - 100.f, 0.f);
 		evaluation -= speedPen;
 	}
-	else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed) || abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
+	//else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed) || abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
+	else {
 		// 100-200: crashed into landing area, calculate score by speed above safety
 	
 		float xPen = 0.f;
@@ -1199,10 +1200,10 @@ float Chromosome::evaluate(const Surface& surface) {
 
 		evaluation = 200.f - xPen - yPen/* - rotationPen*/;
 	}
-	else {
-		// 200-300: landed safely, calculate score by fuel remaining
-		evaluation = 200.f + (100.f * shuttle.getFuel() / INITIAL_FUEL);
-	}
+	//else {
+	//	// 200-300: landed safely, calculate score by fuel remaining
+	//	evaluation = 200.f + (100.f * shuttle.getFuel() / INITIAL_FUEL);
+	//}
 #ifdef SVG
 	originalEvaluation = evaluation;
 #endif // SVG
