@@ -138,24 +138,23 @@ namespace Math {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-typedef float Coord;
-const Coord INVALID_COORD = -1.f;
+const float INVALID_COORD = -1.f;
 
 class Coords {
 public:
 	Coords();
-	Coords(Coord xCoord, Coord yCoord);
+	Coords(float xCoord, float yCoord);
 
-	inline Coord getXCoord() const {
+	inline float getXCoord() const {
 		return xCoord;
 	}
 
-	inline Coord getYCoord() const {
+	inline float getYCoord() const {
 		return yCoord;
 	}
 
-	void setXCoord(Coord xCoord) { this->xCoord = xCoord; }
-	void setYCoord(Coord yCoord) { this->yCoord = yCoord; }
+	void setXCoord(float xCoord) { this->xCoord = xCoord; }
+	void setYCoord(float yCoord) { this->yCoord = yCoord; }
 
 	Coords& operator=(const Coords& other);
 	bool operator==(const Coords& other);
@@ -165,10 +164,10 @@ public:
 	bool isValid() const;
 	void debug() const;
 
-	friend Coord distance(const Coords& point0, const Coords& point1);
+	friend float distance(const Coords& point0, const Coords& point1);
 private:
-	Coord xCoord;
-	Coord yCoord;
+	float xCoord;
+	float yCoord;
 };
 
 //*************************************************************************************************************
@@ -184,8 +183,8 @@ Coords::Coords() :
 //*************************************************************************************************************
 
 Coords::Coords(
-	Coord xCoord,
-	Coord yCoord
+	float xCoord,
+	float yCoord
 ) :
 	xCoord(xCoord),
 	yCoord(yCoord)
@@ -245,11 +244,11 @@ void Coords::debug() const {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-Coord distance(const Coords& point0, const Coords& point1) {
-	Coord lineXLenght = static_cast<Coord>(abs(point0.xCoord - point1.xCoord));
-	Coord lineYLenght = static_cast<Coord>(abs(point0.yCoord - point1.yCoord));
+float distance(const Coords& point0, const Coords& point1) {
+	float lineXLenght = static_cast<float>(abs(point0.xCoord - point1.xCoord));
+	float lineYLenght = static_cast<float>(abs(point0.yCoord - point1.yCoord));
 
-	Coord distance = static_cast<Coord>(sqrt((lineXLenght * lineXLenght) + (lineYLenght * lineYLenght)));
+	float distance = static_cast<float>(sqrt((lineXLenght * lineXLenght) + (lineYLenght * lineYLenght)));
 
 	return distance;
 }
@@ -316,7 +315,7 @@ public:
 	void setLandingZoneDirection(int landingZoneDirection) { this->landingZoneDirection = landingZoneDirection; }
 	void setLenght(int lenght) { this->lenght = lenght; }
 
-	Coord distanceToPoint(const Coords& point) const;
+	//float distanceToPoint(const Coords& point) const;
 	bool pointBelow(const Coords& landerPoint) const;
 
 private:
@@ -324,8 +323,8 @@ private:
 	Coords point1;
 	int landingZoneDirection;
 	int lenght;
-	Coord m;
-	Coord b;
+	//float m;
+	//float b;
 };
 
 //*************************************************************************************************************
@@ -343,18 +342,18 @@ Line::Line(const Coords& point0, const Coords& point1, int landingZoneDirection)
 	point1(point1),
 	landingZoneDirection(landingZoneDirection)
 {
-	Coord x0 = point0.getXCoord();
-	Coord y0 = point0.getYCoord();
-	Coord x1 = point1.getXCoord();
-	Coord y1 = point1.getYCoord();
+	float x0 = point0.getXCoord();
+	float y0 = point0.getYCoord();
+	float x1 = point1.getXCoord();
+	float y1 = point1.getYCoord();
 
 	int lineX = static_cast<int>(abs(x0 - x1));
 	int lineY = static_cast<int>(abs(y0 - y1));
 
 	lenght = static_cast<int>(sqrt((lineX * lineX) + (lineY * lineY)));
 
-	m = (y1 - y0) / (x1 - x0);
-	b = y0 - (m * x0);
+	//m = (y1 - y0) / (x1 - x0);
+	//b = y0 - (m * x0);
 }
 
 //*************************************************************************************************************
@@ -367,17 +366,17 @@ Line::~Line() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-Coord Line::distanceToPoint(const Coords& point) const {
-	Coord tempLineM = -(1 / m);
-	Coord tempLineB = point.getYCoord() - (tempLineM * point.getXCoord());
-
-	Coord intersectXCoord = (tempLineB - b) / (m - tempLineM);
-	Coord intersectYCoord = (tempLineM * intersectXCoord) + tempLineB;
-
-	Coords intersectionPoint(intersectXCoord, intersectYCoord);
-
-	return distance(point, intersectionPoint);
-}
+//float Line::distanceToPoint(const Coords& point) const {
+//	float tempLineM = -(1 / m);
+//	float tempLineB = point.getYCoord() - (tempLineM * point.getXCoord());
+//
+//	float intersectXCoord = (tempLineB - b) / (m - tempLineM);
+//	float intersectYCoord = (tempLineM * intersectXCoord) + tempLineB;
+//
+//	Coords intersectionPoint(intersectXCoord, intersectYCoord);
+//
+//	return distance(point, intersectionPoint);
+//}
 
 //*************************************************************************************************************
 //*************************************************************************************************************
@@ -385,14 +384,14 @@ Coord Line::distanceToPoint(const Coords& point) const {
 bool Line::pointBelow(const Coords& landerPoint) const {
 	bool below = false;
 
-	Coord landerX = landerPoint.getXCoord();
-	Coord line0X = point0.getXCoord();
-	Coord line1X = point1.getXCoord();
+	float landerX = landerPoint.getXCoord();
+	float line0X = point0.getXCoord();
+	float line1X = point1.getXCoord();
 
 	if (landerX >= line0X && landerX < line1X) {
-		Coord landerY = landerPoint.getYCoord();
-		Coord line0Y = point0.getYCoord();
-		Coord line1Y = point1.getYCoord();
+		float landerY = landerPoint.getYCoord();
+		float line0Y = point0.getYCoord();
+		float line1Y = point1.getYCoord();
 
 		//	Line[{x1, y1}, { x2,y2 }]
 		//	Points{ xA,yA }, { xB,yB } ...
@@ -503,25 +502,27 @@ int Surface::collisionWithSurface(
 
 	for (size_t lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
 		const Line& line = lines[lineIdx];
+		const Coords& linePoint0 = line.getPoint0();
+		const Coords& linePoint1 = line.getPoint1();
 
-		const Coord p0x = point0.getXCoord();
-		const Coord p0y = point0.getYCoord();
-		const Coord p1x = point1.getXCoord();
-		const Coord p1y = point1.getYCoord();
+		const float p0x = point0.getXCoord();
+		const float p0y = point0.getYCoord();
+		const float p1x = point1.getXCoord();
+		const float p1y = point1.getYCoord();
 
-		const Coord p2x = line.getPoint0().getXCoord();
-		const Coord p2y = line.getPoint0().getYCoord();
-		const Coord p3x = line.getPoint1().getXCoord();
-		const Coord p3y = line.getPoint1().getYCoord();
+		const float p2x = linePoint0.getXCoord();
+		const float p2y = linePoint0.getYCoord();
+		const float p3x = linePoint1.getXCoord();
+		const float p3y = linePoint1.getYCoord();
 
-		const Coord s1x = p1x - p0x;
-		const Coord s1y = p1y - p0y;
+		const float s1x = p1x - p0x;
+		const float s1y = p1y - p0y;
 
-		const Coord s2x = p3x - p2x;
-		const Coord s2y = p3y - p2y;
+		const float s2x = p3x - p2x;
+		const float s2y = p3y - p2y;
 
-		const Coord s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
-		const Coord t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
+		const float s = (-s1y * (p0x - p2x) + s1x * (p0y - p2y)) / (-s2x * s1y + s1x * s2y);
+		const float t = (s2x * (p0y - p2y) - s2y * (p0x - p2x)) / (-s2x * s1y + s1x * s2y);
 
 		if (s >= 0.f && s <= 1.f && t >= 0.f && t <= 1.f) {
 			//collisionPoint.setXCoord(p0x + (t * s1x));
@@ -565,10 +566,10 @@ string Surface::constructSVGData(const SVGManager& svgManager) const {
 
 	for (size_t lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
 		Line line = lines[lineIdx];
-		Coord startX = line.getPoint0().getXCoord();
-		Coord startY = MAP_HEIGHT - line.getPoint0().getYCoord();
-		Coord endX = line.getPoint1().getXCoord();
-		Coord endY = MAP_HEIGHT - line.getPoint1().getYCoord();
+		float startX = line.getPoint0().getXCoord();
+		float startY = MAP_HEIGHT - line.getPoint0().getYCoord();
+		float endX = line.getPoint1().getXCoord();
+		float endY = MAP_HEIGHT - line.getPoint1().getYCoord();
 
 		svgStr.append(to_string(startX));
 		svgStr.append(",");
@@ -1161,10 +1162,10 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 		Coords position = path[positionIdx];
 		Coords nextPosition = path[positionIdx + 1];
 
-		Coord startX = position.getXCoord();
-		Coord startY = MAP_HEIGHT - position.getYCoord();
-		Coord endX = nextPosition.getXCoord();
-		Coord endY = MAP_HEIGHT - nextPosition.getYCoord();
+		float startX = position.getXCoord();
+		float startY = MAP_HEIGHT - position.getYCoord();
+		float endX = nextPosition.getXCoord();
+		float endY = MAP_HEIGHT - nextPosition.getYCoord();
 
 		svgStr.append(to_string(startX));
 		svgStr.append(",");
@@ -1211,8 +1212,8 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 //*************************************************************************************************************
 
 float Chromosome::evaluate(const Surface& surface) {
-	const Coord xPos = shuttle.getPosition().getXCoord();
-	const Coord yPos = shuttle.getPosition().getYCoord();
+	const float xPos = shuttle.getPosition().getXCoord();
+	const float yPos = shuttle.getPosition().getYCoord();
 	const bool validXPos = xPos >= 0 && xPos < MAP_WIDTH;
 	const bool validYPos = yPos >= 0 && yPos < MAP_HEIGHT;
 	
