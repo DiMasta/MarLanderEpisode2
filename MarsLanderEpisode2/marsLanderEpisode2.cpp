@@ -62,9 +62,9 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 300;//300;
-const int POPULATION_SIZE = 200;
-const int MAX_POPULATION = 10000;//250;
+const int CHROMOSOME_SIZE = 200;//300;
+const int POPULATION_SIZE = 100;
+const int MAX_POPULATION = 1500;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
@@ -85,6 +85,7 @@ const int LAST_COMMANDS_TO_EDIT = 1;
 const int ADDITIONAL_TURNS = 4;
 const int CHECK_FOR_CRASH_AFTER_GENE = 15;
 const int MAX_LINES = 30;
+const int VISUAL_POPULATIONS_GAP = 1;
 
 const unsigned int CRASHED_IDX_MASK = 0b1111'1000'0000'0000'0000'0000'0000'0000;
 const int CRASHED_IDX_MASK_OFFSET = 27;
@@ -1260,6 +1261,7 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 						// Ignore the gene which is after the crash
 						lastGene = geneIdx;
 #ifdef SVG
+						setFlag(SOLUTION_FLAG);
 						for (size_t coordsIdx = 0; coordsIdx < path.size(); ++coordsIdx) {
 							cout << '(' << path[coordsIdx].getXCoord() << ',' << path[coordsIdx].getYCoord() << "),";
 							if (0 == coordsIdx % 10) { cout << endl; }
@@ -1453,6 +1455,10 @@ private:
 
 	int populationId; /// For visual debug purposes
 	float evaluationSum; /// Sum of all evaluations
+
+#ifdef SVG
+	int solutionChromIdx;
+#endif
 };
 
 //*************************************************************************************************************
@@ -1461,6 +1467,9 @@ private:
 GeneticPopulation::GeneticPopulation() :
 	surface(),
 	populationId(0)
+#ifdef SVG
+	, solutionChromIdx(INVALID_ID)
+#endif
 {
 }
 
@@ -1511,6 +1520,9 @@ bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 
 		if (foundResChromosome) {
 			solutionChromIdx = chromIdx;
+#ifdef SVG
+			this->solutionChromIdx = solutionChromIdx;
+#endif
 			break;
 		}
 
@@ -1708,6 +1720,7 @@ void GeneticPopulation::makeNextGeneration(
 
 #ifdef SVG
 	visualDebugGeneration(svgManager);
+	
 #endif // SVG
 
 	reset();
@@ -1791,14 +1804,17 @@ void GeneticPopulation::turnEnd() {
 #ifdef SVG
 void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
 	string populationSVGData = constructSVGData(svgManager);
-	string populationIdSVGData = svgManager.constructGId(populationId);
-	svgManager.filePrintStr(populationIdSVGData);
-	svgManager.filePrintStr(DISPLAY_NONE);
-	svgManager.filePrintStr(ID_END);
-	svgManager.filePrintStr(populationSVGData);
-	svgManager.filePrintStr(GROUP_END);
-	svgManager.filePrintStr(NEW_LINE);
-	svgManager.filePrintStr(NEW_LINE);
+	if ("" != populationSVGData) {
+		static int turn = 0;
+		string populationIdSVGData = svgManager.constructGId(turn++);
+		svgManager.filePrintStr(populationIdSVGData);
+		svgManager.filePrintStr(DISPLAY_NONE);
+		svgManager.filePrintStr(ID_END);
+		svgManager.filePrintStr(populationSVGData);
+		svgManager.filePrintStr(GROUP_END);
+		svgManager.filePrintStr(NEW_LINE);
+		svgManager.filePrintStr(NEW_LINE);
+	}
 }
 
 //*************************************************************************************************************
@@ -1807,11 +1823,19 @@ void GeneticPopulation::visualDebugGeneration(SVGManager& svgManager) const {
 string GeneticPopulation::constructSVGData(const SVGManager& svgManager) const {
 	string svgStr = "";
 
-	for (int chromeIdx = 0; chromeIdx < POPULATION_SIZE; ++chromeIdx) {
-		const Chromosome& chromosome = population[chromeIdx];
+	if (INVALID_ID != solutionChromIdx) {
+		const Chromosome& chromosome = population[solutionChromIdx];
 		if (chromosome.getShuttle().getPosition().isValid()) {
 			string chromeSVGData = chromosome.constructSVGData(svgManager);
 			svgStr.append(chromeSVGData);
+		}
+	} else if (0 == populationId % VISUAL_POPULATIONS_GAP) {
+		for (int chromeIdx = 0; chromeIdx < POPULATION_SIZE; ++chromeIdx) {
+			const Chromosome& chromosome = population[chromeIdx];
+			if (chromosome.getShuttle().getPosition().isValid()) {
+				string chromeSVGData = chromosome.constructSVGData(svgManager);
+				svgStr.append(chromeSVGData);
+			}
 		}
 	}
 
