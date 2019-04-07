@@ -16,9 +16,9 @@
 #include <iterator>
 
 //#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
+#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_COUT_TO_FILE
+#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
@@ -294,11 +294,11 @@ public:
 	Line(const Coords& point0, const Coords& point1, int landingZoneDirection);
 	~Line();
 
-	inline Coords getPoint0() const {
+	inline const Coords& getPoint0() const {
 		return point0;
 	}
 
-	inline Coords getPoint1() const {
+	inline const Coords& getPoint1() const {
 		return point1;
 	}
 
@@ -315,16 +315,11 @@ public:
 	void setLandingZoneDirection(int landingZoneDirection) { this->landingZoneDirection = landingZoneDirection; }
 	void setLenght(int lenght) { this->lenght = lenght; }
 
-	//float distanceToPoint(const Coords& point) const;
-	bool pointBelow(const Coords& landerPoint) const;
-
 private:
 	Coords point0;
 	Coords point1;
-	int landingZoneDirection;
-	int lenght;
-	//float m;
-	//float b;
+	int landingZoneDirection; // TODO: maybe this could be optimized, to be stored in Surface
+	int lenght; // TODO: maybe this could be optimized, to be stored in Surface
 };
 
 //*************************************************************************************************************
@@ -351,9 +346,6 @@ Line::Line(const Coords& point0, const Coords& point1, int landingZoneDirection)
 	int lineY = static_cast<int>(abs(y0 - y1));
 
 	lenght = static_cast<int>(sqrt((lineX * lineX) + (lineY * lineY)));
-
-	//m = (y1 - y0) / (x1 - x0);
-	//b = y0 - (m * x0);
 }
 
 //*************************************************************************************************************
@@ -361,62 +353,6 @@ Line::Line(const Coords& point0, const Coords& point1, int landingZoneDirection)
 
 Line::~Line() {
 
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-//float Line::distanceToPoint(const Coords& point) const {
-//	float tempLineM = -(1 / m);
-//	float tempLineB = point.getYCoord() - (tempLineM * point.getXCoord());
-//
-//	float intersectXCoord = (tempLineB - b) / (m - tempLineM);
-//	float intersectYCoord = (tempLineM * intersectXCoord) + tempLineB;
-//
-//	Coords intersectionPoint(intersectXCoord, intersectYCoord);
-//
-//	return distance(point, intersectionPoint);
-//}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-bool Line::pointBelow(const Coords& landerPoint) const {
-	bool below = false;
-
-	float landerX = landerPoint.getXCoord();
-	float line0X = point0.getXCoord();
-	float line1X = point1.getXCoord();
-
-	if (landerX >= line0X && landerX < line1X) {
-		float landerY = landerPoint.getYCoord();
-		float line0Y = point0.getYCoord();
-		float line1Y = point1.getYCoord();
-
-		//	Line[{x1, y1}, { x2,y2 }]
-		//	Points{ xA,yA }, { xB,yB } ...
-		//
-		//	v1 = { x2 - x1, y2 - y1 }   # Vector 1
-		//	v2 = { x2 - xA, y2 - yA }   # Vector 1
-		//	xp = v1.x*v2.y - v1.y*v2.x  # Cross product
-		//	if xp > 0:
-		//		print 'on one side'
-		//	elif xp < 0 :
-		//		print 'on the other'
-		//	else:
-		//		print 'on the same line!'
-
-		Coords v1(line1X - line0X, line1Y - line0Y);
-		Coords v2(line1X - landerX, line1Y - landerY);
-
-		int xp = static_cast<int>(v1.getXCoord() * v2.getYCoord() - v1.getYCoord() * v2.getXCoord());
-
-		if (xp < 0) {
-			below = true;
-		}
-	}
-
-	return below;
 }
 
 //-------------------------------------------------------------------------------------------------------------
