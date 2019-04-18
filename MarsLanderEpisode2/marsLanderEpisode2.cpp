@@ -2133,6 +2133,9 @@ void Game::turnEnd() {
 //*************************************************************************************************************
 
 void Game::play() {
+	size_t populationSize = sizeof(geneticPopulation);
+	size_t populationClassSize = sizeof(GeneticPopulation);
+
 	initGame();
 	getGameInput();
 	gameBegin();
