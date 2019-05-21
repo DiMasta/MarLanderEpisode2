@@ -1,0 +1,6 @@
+To improve:
+Checking for collision, may with vixel map
+Each turn simulation
+My own simulator
+Gene to hold only one int or short or char with masks for rotate and power
+Improve random
