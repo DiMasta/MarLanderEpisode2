@@ -15,11 +15,12 @@
 #include <chrono>
 #include <iterator>
 
-#define SVG
-#define REDIRECT_CIN_FROM_FILE
-#define REDIRECT_COUT_TO_FILE
-#define SIMULATION_OUTPUT
+//#define SVG
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
+#define TIME_MEASURERMENT
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
 
@@ -40,6 +41,7 @@ const int TREE_ROOT_NODE_DEPTH = 1;
 const int ZERO_CHAR = '0';
 const int DIRECTIONS_COUNT = 8;
 const int RIGHT_ANGLE = 90;
+const int DOUBLE_RIGHT_ANGLE = 2 * RIGHT_ANGLE;
 
 const float PI = 3.14159265f;
 const float BEST_CHROMOSOMES_PERCENT = .3f;
@@ -62,9 +64,9 @@ const float DIST_WEIGHT = 4.f;
 const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
-const int CHROMOSOME_SIZE = 200;//300;
+const int CHROMOSOME_SIZE = 300;//300;
 const int POPULATION_SIZE = 100;
-const int MAX_POPULATION = 1500;//250;
+const int MAX_POPULATION = 5000;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
@@ -687,7 +689,7 @@ void Shuttle::calculateComponents(
 	float& acceleration
 ) {
 	int theta = RIGHT_ANGLE + rotate;
-	float rad = theta * PI / (2 * RIGHT_ANGLE);
+	float rad = theta * PI / DOUBLE_RIGHT_ANGLE;
 
 	float mult = cos(rad);
 	if (CT_VERTICAL == componentType) {
@@ -1083,15 +1085,15 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	svgStr.append(GROUP_BEGIN);
 	svgStr.append(NEW_LINE);
 
-	vector<string> titleLines;
-	shuttle.getTitleLines(titleLines);
-	string evaluationLine = "Evaluation: ";
-	evaluationLine.append(to_string(originalEvaluation));
-	titleLines.push_back(evaluationLine);
-	string title = svgManager.constructMultiLineTitle(titleLines);
-	svgStr.append(title);
-	svgStr.append(NEW_LINE);
-	svgStr.append(NEW_LINE);
+	//vector<string> titleLines;
+	//shuttle.getTitleLines(titleLines);
+	//string evaluationLine = "Evaluation: ";
+	//evaluationLine.append(to_string(originalEvaluation));
+	//titleLines.push_back(evaluationLine);
+	//string title = svgManager.constructMultiLineTitle(titleLines);
+	//svgStr.append(title);
+	//svgStr.append(NEW_LINE);
+	//svgStr.append(NEW_LINE);
 
 	svgStr.append(POLYLINE_BEGIN);
 
@@ -1121,7 +1123,8 @@ string Chromosome::constructSVGData(const SVGManager& svgManager) const {
 	string strokeRGB = svgManager.constructStrokeForRGB(255, 255, 255);
 
 	if (hasFlag(SELECTED_FLAG)) {
-		strokeRGB = svgManager.constructStrokeForRGB(0, 0, 255);
+		//strokeRGB = svgManager.constructStrokeForRGB(0, 0, 255);
+		strokeRGB = svgManager.constructStrokeForRGB(0, 255, 0);
 	}
 	else if (hasFlag(SOLUTION_FLAG)) {
 		strokeRGB = svgManager.constructStrokeForRGB(0, 255, 0);
@@ -1579,9 +1582,9 @@ void GeneticPopulation::selectParentsIdxs(int& parent0Idx, int& parent1Idx) {
 //*************************************************************************************************************
 
 void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCount) {
-	const float crossoverRand0 = Math::randomFloatBetween0and1();
-	const float crossoverRand1 = Math::randomFloatBetween0and1();
-
+	//const float crossoverRand0 = Math::randomFloatBetween0and1();
+	//const float crossoverRand1 = Math::randomFloatBetween0and1();
+	//
 	//bool useParent0 = false;
 	//if (crossoverRand0 > PROBABILITY_OF_CROSSOVER) {
 	//	copyChromosomeToNewPopulation(childrenCount, parent0Idx);
@@ -1939,10 +1942,19 @@ void Game::gameLoop() {
 	bool notDone = true;
 
 	while (notDone) {
+#ifdef TIME_MEASURERMENT
+		chrono::steady_clock::time_point begin = chrono::steady_clock::now();
+#endif // TIME_MEASURERMENT
+
 		getTurnInput();
 		turnBegin();
 		makeTurn(notDone);
 		turnEnd();
+
+#ifdef TIME_MEASURERMENT
+		chrono::steady_clock::time_point end = chrono::steady_clock::now();
+		cerr << "Turn[" << turnsCount - 1 << "] execution time: " << chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " [ms]" << std::endl;
+#endif // TIME_MEASURERMENT
 
 #ifdef DEBUG_ONE_TURN
 		break;
@@ -2133,8 +2145,8 @@ void Game::turnEnd() {
 //*************************************************************************************************************
 
 void Game::play() {
-	size_t populationSize = sizeof(geneticPopulation);
-	size_t populationClassSize = sizeof(GeneticPopulation);
+	//size_t populationSize = sizeof(geneticPopulation);
+	//size_t populationClassSize = sizeof(GeneticPopulation);
 
 	initGame();
 	getGameInput();

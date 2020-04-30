@@ -90,7 +90,7 @@ function wholeSimulation(groupIdx) {\n\
 		changePopulationText(groupIdx);\n\
 \n\
 		wholeSimulation(++groupIdx);\n\
-	}, 60);\n\
+	}, 200);\n\
 }\n\
 \n\
 function clicked(evt) {\n\
