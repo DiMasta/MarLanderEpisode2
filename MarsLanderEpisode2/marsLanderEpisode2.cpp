@@ -65,7 +65,7 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 300;//300;
-const int POPULATION_SIZE = 100;
+const int POPULATION_SIZE = 90;//100;
 const int MAX_POPULATION = 5000;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
