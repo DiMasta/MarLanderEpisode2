@@ -28,7 +28,7 @@
 //#define DEBUG_ONE_TURN
 //#define TIME_MEASURERMENT
 //#define USE_UNIFORM_RANDOM
-//#define OUTPUT_GAME_DATA
+#define OUTPUT_GAME_DATA
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -50,8 +50,8 @@ const int RIGHT_ANGLE = 90;
 const int DOUBLE_RIGHT_ANGLE = 2 * RIGHT_ANGLE;
 
 static constexpr long long FIRST_TURN_MS = 1'000;
-static constexpr long long TURN_MS = 110;
-static constexpr long long BIAS_MS = 2;
+static constexpr long long TURN_MS = 100;
+static constexpr long long BIAS_MS = 3;
 
 const float PI = 3.14159265f;
 const float BEST_CHROMOSOMES_PERCENT = .3f;
@@ -76,7 +76,7 @@ const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 150;//300;
 const int POPULATION_SIZE = 100;//100;
-const int MAX_POPULATION = 5000;//250;
+const int MAX_POPULATION = 1000;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
 const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
@@ -928,6 +928,11 @@ public:
 	/// Divide the evaluation by the sum if all evaluations of all chromosomes in order to normalize it
 	void normalizeEvaluation(float evaluationSum);
 
+	/// Copy the given chromosome in this with offseting the genes
+	/// @param[in] chromosome data to copy
+	/// @param[in] genesOffset offset of the genes
+	void copyWithOffset(const Chromosome& chromosome, const int genesOffset);
+
 	void setFlag(int flag);
 	void unsetFlag(int flag);
 	bool hasFlag(int flag) const;
@@ -1050,6 +1055,29 @@ void Chromosome::reset() {
 void Chromosome::normalizeEvaluation(float evaluationSum) {
 	evaluation /= evaluationSum;
 }
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Chromosome::copyWithOffset(const Chromosome& chromosome, const int genesOffset) {
+	this->initialShuttle = chromosome.initialShuttle;
+	this->shuttle = chromosome.shuttle;
+	this->evaluation = chromosome.evaluation;
+	this->flags = chromosome.flags;
+
+	// last genes shouldn't hold very important information
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE - genesOffset; ++geneIdx) {
+		this->chromosome[genesOffset + geneIdx] = chromosome.chromosome[geneIdx];
+	}
+
+#ifdef SVG
+	this->originalEvaluation = rchromosomehs.originalEvaluation;
+	this->path = chromosome.path;
+#endif // SVG
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
 
 void Chromosome::setFlag(int flag) {
 	flags |= flag;
@@ -1184,10 +1212,10 @@ float Chromosome::evaluate(const Surface& surface) {
 	const bool validYPos = yPos >= 0 && yPos < MAP_HEIGHT;
 	
 	if (!validXPos || !validYPos) {
-		evaluation = 0.f;
+		evaluation = 1.f;
 
 #ifdef SVG
-		originalEvaluation = 0.f;
+		originalEvaluation = 1.f;
 #endif // SVG
 
 		return evaluation;
@@ -1364,7 +1392,7 @@ bool Chromosome::checkIfGoodForLanding(const Shuttle& shuttleBeforeCrash, const 
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-typedef map<float, int> ChromEvalIdxMap;
+typedef multimap<float, int> ChromEvalIdxMap;
 
 class GeneticPopulation {
 public:
@@ -1435,9 +1463,9 @@ public:
 	void makeChildren();
 
 	/// Simulate all Chromosomes, using the commands from each gene to move the given shuttle
-	/// @param[out] solutionChromIdx the solution chromosome index
+	/// @param[in] turnIdx the index of the current turn of the game
 	/// @param[out] lastGene the last gene, from the solution, which shloud be ignored
-	bool simulate(int& solutionChromIdx, int& lastGene);
+	bool simulate(const int turnIdx, int& lastGene);
 
 	/// Prepare the population for the roullete wheel selection:
 	///		- calc the sum of evaluations
@@ -1539,7 +1567,7 @@ void GeneticPopulation::initRandomPopulation() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
-bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
+bool GeneticPopulation::simulate(const int turnIdx, int& lastGene) {
 	bool foundResChromosome = false;
 
 	for (int chromIdx = 0; chromIdx < POPULATION_SIZE; ++chromIdx) {
@@ -1559,13 +1587,13 @@ bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 		evaluationSum += value;
 
 		if (foundResChromosome) {
-			solutionChromIdx = chromIdx;
 #ifdef SVG
 			this->solutionChromIdx = solutionChromIdx;
 #endif
 			if (bestChromosome.getShuttle().getFuel() < chromosome.getShuttle().getFuel()) {
-				bestChromosome = chromosome;
-				lastGene = currentLastgene;
+				cerr << "BETTER FOUND" << endl;
+				bestChromosome.copyWithOffset(chromosome, turnIdx);
+				lastGene = turnIdx + currentLastgene;
 			}
 
 			break;
@@ -1780,7 +1808,7 @@ void GeneticPopulation::prepareForRoulleteWheel() {
 		const float normalizedEvaluation = chromosome.getEvaluation() / evaluationSum; // normalize the evalutions
 		chromosome.setEvaluation(normalizedEvaluation);
 
-		chromEvalIdxPairs[normalizedEvaluation] = chromIdx; // Is it good think to use floats as keys
+		chromEvalIdxPairs.insert({ normalizedEvaluation, chromIdx }); // Is it good think to use floats as keys
 	}
 }
 
@@ -1837,7 +1865,6 @@ void GeneticPopulation::copyChromosomeToNewPopulation(int destIdx, int sourceIdx
 //*************************************************************************************************************
 
 void GeneticPopulation::turnEnd() {
-
 	populationId = 0;
 }
 
@@ -1918,9 +1945,6 @@ private:
 
 	GeneticPopulation geneticPopulation;
 
-	/// The solution of the GA
-	int solutionChromIdx;
-
 	/// The last gene, form the solution, which should be ignored
 	int lastGene;
 
@@ -1942,7 +1966,6 @@ Game::Game() :
 	shuttle(),
 	surface(),
 	geneticPopulation(),
-	solutionChromIdx(INVALID_ID),
 	lastGene(INVALID_ID),
 	turnGeneIdx(0)
 #ifdef SVG
@@ -2072,16 +2095,13 @@ void Game::getTurnInput() {
 		cerr << fuel << " " << rotate << " " << power << endl;
 #endif // OUTPUT_GAME_DATA
 
-	// Get data for the shuttle if solution is not found, because everything from the genetic algorithm will be applied on top of the initial shuttle
-	// And there may be differences from the online platform if I use each new position
-	if (INVALID_ID == solutionChromIdx) {
-		shuttle.setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
-		shuttle.setHSpeed(static_cast<float>(hSpeed));
-		shuttle.setVSpeed(static_cast<float>(vSpeed));
-		shuttle.setFuel(fuel);
-		shuttle.setRotate(rotate);
-		shuttle.setPower(power);
-	}
+
+	shuttle.setPosition(Coords(static_cast<float>(X), static_cast<float>(Y)));
+	shuttle.setHSpeed(static_cast<float>(hSpeed));
+	shuttle.setVSpeed(static_cast<float>(vSpeed));
+	shuttle.setFuel(fuel);
+	shuttle.setRotate(rotate);
+	shuttle.setPower(power);
 
 	if (0 == turnsCount) {
 		INITIAL_FUEL = fuel;
@@ -2092,22 +2112,28 @@ void Game::getTurnInput() {
 //*************************************************************************************************************
 
 void Game::turnBegin() {
-	// Run the genetic algorithm every turn if no solution is found
-	if (INVALID_ID != solutionChromIdx) {
-		return;
-	}
+	//if (turnsCount > 0) {
+	//	return;
+	//}
 
 	geneticPopulation.init(shuttle);
 	geneticPopulation.initRandomPopulation();
 
-	const long long timeLimit = FIRST_TURN_MS - BIAS_MS;
+	long long timeLimit = FIRST_TURN_MS - BIAS_MS;
+	if (turnsCount > 0) {
+		timeLimit = TURN_MS - BIAS_MS;
+	}
+
 	bool answerFound = false;
 	const chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 	const chrono::steady_clock::time_point loopEnd = start + chrono::milliseconds{ timeLimit };
 
+#ifdef REDIRECT_CIN_FROM_FILE
+	while (/*!answerFound &&*/ geneticPopulation.getPopulationId() <= MAX_POPULATION) {
+#else
 	for (chrono::steady_clock::time_point now = start; now < loopEnd; now = std::chrono::steady_clock::now()) {
-	//while (/*!answerFound &&*/ geneticPopulation.getPopulationId() <= MAX_POPULATION) {
-		answerFound = geneticPopulation.simulate(solutionChromIdx, lastGene);
+#endif // REDIRECT_CIN_FROM_FILE
+		answerFound = geneticPopulation.simulate(turnsCount, lastGene);
 
 //		if (answerFound) {
 //#ifdef SVG
@@ -2124,7 +2150,9 @@ void Game::turnBegin() {
 		);
 	}
 
+#ifndef OUTPUT_GAME_DATA
 	cerr << "Populations count: " << geneticPopulation.getPopulationId() << endl;
+#endif // OUTPUT_GAME_DATA
 }
 
 //*************************************************************************************************************
@@ -2138,19 +2166,12 @@ void Game::makeTurn(bool& notDone) {
 	}
 #endif // SVG
 
-	int solutionIdx = solutionChromIdx;
-	if (INVALID_ID == solutionChromIdx) {
-		solutionChromIdx = 0; // Override the solution value, if no time to simulate in each turn
-		solutionIdx = 0;
-	}
-
 	char separator = ' ';
 #ifdef SIMULATION_OUTPUT
 	separator = ',';
 #endif // SIMULATION_OUTPUT
 
 	if (turnGeneIdx < lastGene) {
-		//const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
 		const Chromosome& solutionChromosome = geneticPopulation.getSolutionChromosomeRef();
 		shuttle.applyNewRotateAngle(solutionChromosome.getGene(turnGeneIdx).rotate);
 		shuttle.applyNewPower(solutionChromosome.getGene(turnGeneIdx).power);
@@ -2165,9 +2186,7 @@ void Game::makeTurn(bool& notDone) {
 		cout << 0 << separator << 0 << endl;
 	}
 
-	if (INVALID_ID != solutionChromIdx) {
-		++turnGeneIdx;
-	}
+	++turnGeneIdx;
 
 #ifdef SIMULATION_OUTPUT
 	cout << ',';
@@ -2184,9 +2203,7 @@ void Game::makeTurn(bool& notDone) {
 void Game::turnEnd() {
 	++turnsCount;
 
-	if (INVALID_ID == solutionChromIdx) {
-		geneticPopulation.turnEnd();
-	}
+	geneticPopulation.turnEnd();
 }
 
 //*************************************************************************************************************
