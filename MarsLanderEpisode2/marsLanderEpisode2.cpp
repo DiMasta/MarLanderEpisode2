@@ -1209,8 +1209,8 @@ float Chromosome::evaluate(const Surface& surface) {
 		const float speedPen = 0.1f * max(currentSpeed - 100.f, 0.f);
 		evaluation -= speedPen;
 	}
-	//else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed) || abs(rotation) > MAX_ROTATION_ANGLE_STEP) {
-	else {
+	else if (vSpeed < -MAX_V_ABS_SPEED || MAX_H_ABS_SPEED < abs(hSpeed) /*|| abs(rotation) > MAX_ROTATION_ANGLE_STEP*/) {
+	//else {
 		// 100-200: crashed into landing area, calculate score by speed above safety
 	
 		float xPen = 0.f;
@@ -1230,10 +1230,10 @@ float Chromosome::evaluate(const Surface& surface) {
 
 		evaluation = 200.f - xPen - yPen/* - rotationPen*/;
 	}
-	//else {
-	//	// 200-300: landed safely, calculate score by fuel remaining
-	//	evaluation = 200.f + (100.f * shuttle.getFuel() / INITIAL_FUEL);
-	//}
+	else {
+		// 200-300: landed safely, calculate score by fuel remaining
+		evaluation = 200.f + (100.f * shuttle.getFuel() / INITIAL_FUEL);
+	}
 #ifdef SVG
 	originalEvaluation = evaluation;
 #endif // SVG
@@ -1555,6 +1555,9 @@ bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 		int currentLastgene = 0;
 		chromosome.simulate(surface, foundResChromosome, currentLastgene);
 
+		const float value = chromosome.evaluate(surface);
+		evaluationSum += value;
+
 		if (foundResChromosome) {
 			solutionChromIdx = chromIdx;
 #ifdef SVG
@@ -1567,8 +1570,6 @@ bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 
 			break;
 		}
-
-		evaluationSum += chromosome.evaluate(surface);
 	}
 
 	return foundResChromosome;
@@ -2192,9 +2193,6 @@ void Game::turnEnd() {
 //*************************************************************************************************************
 
 void Game::play() {
-	//size_t populationSize = sizeof(geneticPopulation);
-	//size_t populationClassSize = sizeof(GeneticPopulation);
-
 	initGame();
 	getGameInput();
 	gameBegin();
