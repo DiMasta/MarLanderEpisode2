@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <ctime>
 #include <deque>
-#include <math.h>
+#include <cmath>
 #include <fstream>
 #include <random>
 #include <chrono>
@@ -26,7 +26,7 @@
 //#define REDIRECT_COUT_TO_FILE
 //#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
-#define TIME_MEASURERMENT
+//#define TIME_MEASURERMENT
 //#define USE_UNIFORM_RANDOM
 //#define OUTPUT_GAME_DATA
 
@@ -48,6 +48,10 @@ const int ZERO_CHAR = '0';
 const int DIRECTIONS_COUNT = 8;
 const int RIGHT_ANGLE = 90;
 const int DOUBLE_RIGHT_ANGLE = 2 * RIGHT_ANGLE;
+
+static constexpr long long FIRST_TURN_MS = 1'000;
+static constexpr long long TURN_MS = 110;
+static constexpr long long BIAS_MS = 2;
 
 const float PI = 3.14159265f;
 const float BEST_CHROMOSOMES_PERCENT = .3f;
@@ -445,7 +449,7 @@ int Surface::collisionWithSurface(
 ) const {
 	int crashLineIdx = INVALID_ID;
 
-	for (size_t lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
+	for (int lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
 		const Line& line = lines[lineIdx];
 		const Coords& linePoint0 = line.getPoint0();
 		const Coords& linePoint1 = line.getPoint1();
@@ -600,6 +604,8 @@ public:
 	Shuttle();
 	Shuttle(const Shuttle& shuttle);
 
+	Shuttle& operator=(const Shuttle& rhs);
+
 	Coords getPosition() const {
 		return position;
 	}
@@ -683,6 +689,20 @@ Shuttle::Shuttle(const Shuttle& shuttle) {
 	fuel = shuttle.fuel;
 	rotate = shuttle.rotate;
 	power = shuttle.power;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+Shuttle& Shuttle::operator=(const Shuttle& rhs) {
+	this->position = rhs.position;
+	this->hSpeed = rhs.hSpeed;
+	this->vSpeed = rhs.vSpeed;
+	this->fuel = rhs.fuel;
+	this->rotate = rhs.rotate;
+	this->power = rhs.power;
+
+	return *this;
 }
 
 //*************************************************************************************************************
@@ -878,6 +898,9 @@ public:
 	Chromosome();
 	~Chromosome();
 
+	Chromosome& operator=(const Chromosome& rhs);
+	bool operator<(const Chromosome& chromosome) const;
+
 	Shuttle getShuttle() const {
 		return shuttle;
 	}
@@ -911,9 +934,6 @@ public:
 	void resetFlags();
 	void addCrashLineIdxToFlags(int crashedLineIdx);
 	int getCrashedLineIdx() const;
-
-	bool operator<(const Chromosome& chromosome) const;
-	Chromosome& operator=(const Chromosome& other);
 
 	float evaluate(const Surface& surface);
 	void insertGene(int geneIdx, const Gene& gene);
@@ -990,6 +1010,27 @@ Chromosome::~Chromosome() {
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+Chromosome& Chromosome::operator=(const Chromosome& rhs) {
+	this->initialShuttle = rhs.initialShuttle;
+	this->shuttle = rhs.shuttle;
+	this->evaluation = rhs.evaluation;
+	this->flags = rhs.flags;
+
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+		this->chromosome[geneIdx] = rhs.chromosome[geneIdx];
+	}
+
+#ifdef SVG
+	this->originalEvaluation = rhs.originalEvaluation;
+	this->path = rhs.path;
+#endif // SVG
+
+	return *this;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void Chromosome::init(const Shuttle& shuttle) {
 	initialShuttle = shuttle;
 	this->shuttle = initialShuttle; // May be not nice code
@@ -1058,27 +1099,6 @@ int Chromosome::getCrashedLineIdx() const {
 
 bool Chromosome::operator<(const Chromosome& chromosome) const {
 	return evaluation < chromosome.evaluation;
-}
-
-//*************************************************************************************************************
-//*************************************************************************************************************
-
-Chromosome& Chromosome::operator=(const Chromosome& other) {
-//		if (this != &other) {
-//			chromosome.shrink_to_fit();
-//	
-//			shuttle = other.shuttle;
-//			evaluation = other.evaluation;
-//			chromosome = other.chromosome;
-//			flags = other.flags;
-//	
-//	#ifdef SVG
-//			path.clear();
-//			originalEvaluation = other.originalEvaluation;
-//			path = other.path;
-//	#endif // SVG
-//		}
-		return *this;
 }
 
 //*************************************************************************************************************
@@ -1363,6 +1383,10 @@ public:
 		return population[chromIdx];
 	}
 
+	const Chromosome& getSolutionChromosomeRef() const {
+		return bestChromosome;
+	}
+
 	void setSurface(const Surface& surface) { this->surface = surface; }
 
 	/// Reserve memory for 2 populations
@@ -1447,6 +1471,9 @@ private:
 	Chromosome populationA[POPULATION_SIZE];
 	Chromosome populationB[POPULATION_SIZE];
 
+	/// The solution chromosome with the best fuel and best evaluation
+	Chromosome bestChromosome;
+
 	/// Points to active population
 	Chromosome* population;
 
@@ -1525,13 +1552,19 @@ bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 			continue;
 		}
 
-		chromosome.simulate(surface, foundResChromosome, lastGene);
+		int currentLastgene = 0;
+		chromosome.simulate(surface, foundResChromosome, currentLastgene);
 
 		if (foundResChromosome) {
 			solutionChromIdx = chromIdx;
 #ifdef SVG
 			this->solutionChromIdx = solutionChromIdx;
 #endif
+			if (bestChromosome.getShuttle().getFuel() < chromosome.getShuttle().getFuel()) {
+				bestChromosome = chromosome;
+				lastGene = currentLastgene;
+			}
+
 			break;
 		}
 
@@ -2066,17 +2099,22 @@ void Game::turnBegin() {
 	geneticPopulation.init(shuttle);
 	geneticPopulation.initRandomPopulation();
 
+	const long long timeLimit = FIRST_TURN_MS - BIAS_MS;
 	bool answerFound = false;
-	while (!answerFound && geneticPopulation.getPopulationId() <= MAX_POPULATION) {
+	const chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+	const chrono::steady_clock::time_point loopEnd = start + chrono::milliseconds{ timeLimit };
+
+	for (chrono::steady_clock::time_point now = start; now < loopEnd; now = std::chrono::steady_clock::now()) {
+	//while (/*!answerFound &&*/ geneticPopulation.getPopulationId() <= MAX_POPULATION) {
 		answerFound = geneticPopulation.simulate(solutionChromIdx, lastGene);
 
-		if (answerFound) {
-#ifdef SVG
-			geneticPopulation.visualDebugGeneration(svgManager);
-#endif // SVG
-
-			break;
-		}
+//		if (answerFound) {
+//#ifdef SVG
+//			geneticPopulation.visualDebugGeneration(svgManager);
+//#endif // SVG
+//
+//			break;
+//		}
 
 		geneticPopulation.makeNextGeneration(
 #ifdef SVG
@@ -2084,6 +2122,8 @@ void Game::turnBegin() {
 #endif // SVG
 		);
 	}
+
+	cerr << "Populations count: " << geneticPopulation.getPopulationId() << endl;
 }
 
 //*************************************************************************************************************
@@ -2109,7 +2149,8 @@ void Game::makeTurn(bool& notDone) {
 #endif // SIMULATION_OUTPUT
 
 	if (turnGeneIdx < lastGene) {
-		const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
+		//const Chromosome& solutionChromosome = geneticPopulation.getChromosomeRef(solutionIdx);
+		const Chromosome& solutionChromosome = geneticPopulation.getSolutionChromosomeRef();
 		shuttle.applyNewRotateAngle(solutionChromosome.getGene(turnGeneIdx).rotate);
 		shuttle.applyNewPower(solutionChromosome.getGene(turnGeneIdx).power);
 
