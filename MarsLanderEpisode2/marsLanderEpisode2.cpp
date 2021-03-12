@@ -1,8 +1,21 @@
+//#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
+//#define DEBUG_ONE_TURN
+//#define TIME_MEASURERMENT
+//#define USE_UNIFORM_RANDOM
+//#define OUTPUT_GAME_DATA
+//#define SVG
+
+#ifndef REDIRECT_CIN_FROM_FILE
+
 #pragma GCC optimize("O3","unroll-loops","omit-frame-pointer","inline") //Optimization flags
 #pragma GCC option("arch=native","tune=native","no-zero-upper") //Enable AVX
 #pragma GCC target("avx")  //Enable AVX
 #include <x86intrin.h> //AVX/SSE Extensions
 #include <bits/stdc++.h> //All main STD libraries
+
+#else
 
 #include <iostream>
 #include <string>
@@ -21,14 +34,7 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
-//#define DEBUG_ONE_TURN
-//#define TIME_MEASURERMENT
-//#define USE_UNIFORM_RANDOM
-//#define OUTPUT_GAME_DATA
+#endif // REDIRECT_CIN_FROM_FILE
 
 #ifdef SVG
 #include "SVGManager.h"
@@ -75,10 +81,10 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 150;//300;
-const int POPULATION_SIZE = 100;//100;
+const int POPULATION_SIZE = 120;//100;
 const int MAX_POPULATION = 5000;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
-const float PROBABILITY_OF_MUTATION = 0.01f; // The probability to mutate a gene
+const float PROBABILITY_OF_MUTATION = 0.03f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
 
 const int INVALID_ROTATION_ANGLE = 100;
@@ -395,6 +401,15 @@ public:
 		bool& crashedInLandingArea
 	) const;
 
+	/// Check if the given position is bellow a vert border
+	/// @param[in] shuttleCoords the coordinates of the shuttle
+	/// @param[out] crashedInLandingArea true if the collision is on the landing area
+	/// @return the index of the crashed in line 
+	int collisionWithSurfaceVertLines(
+		const Coords& shuttleCoords,
+		bool& crashedInLandingArea
+	) const;
+
 	void addLine(
 		const Coords& point0,
 		const Coords& point1,
@@ -410,6 +425,7 @@ public:
 #endif // SVG
 
 private:
+	int verticalLines[MAP_WIDTH * 2]; /// Red line y coordinates in each element
 	Line lines[MAX_LINES]; /// Native C++ array to hold the level linees
 	int linesCount; /// Lines in current level
 	int landingAreaLineIdx; /// Index of the landing area line
@@ -488,6 +504,26 @@ int Surface::collisionWithSurface(
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+int Surface::collisionWithSurfaceVertLines(
+	const Coords& shuttleCoords,
+	bool& crashedInLandingArea
+) const {
+	int crashLineIdx = INVALID_ID;
+
+	const int x = static_cast<int>(shuttleCoords.getXCoord());
+	const int y = static_cast<int>(shuttleCoords.getYCoord());
+
+	if (x >= 0 && x < MAP_WIDTH && y < verticalLines[x * 2]) {
+		crashLineIdx = verticalLines[(x * 2) + 1];
+		crashedInLandingArea = landingAreaLineIdx == crashLineIdx;
+	}
+
+	return crashLineIdx;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void Surface::addLine(
 	const Coords& point0,
 	const Coords& point1,
@@ -504,6 +540,17 @@ void Surface::addLine(
 	}
 
 	lines[lineIdx] = line;
+
+	for (int x = static_cast<int>(point0.getXCoord()); x <= static_cast<int>(point1.getXCoord()); ++x) {
+		const int x0 = static_cast<int>(point0.getXCoord());
+		const int x1 = static_cast<int>(point1.getXCoord());
+		const int y0 = static_cast<int>(point0.getYCoord());
+		const int y1 = static_cast<int>(point1.getYCoord());
+		const int smallerHSide = (y0 > y1) ? (x1 - x) : (x - x0);
+		const int ab = (abs(y1 - y0) * smallerHSide) / (x1 - x0);
+		verticalLines[x * 2] = min(y0, y1) + ab + 5;
+		verticalLines[(x * 2) + 1] = lineIdx;
+	}
 }
 
 //*************************************************************************************************************
@@ -1276,7 +1323,16 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 
 		if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
 			bool crashedInLandingArea = false;
-			const int crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
+			//const int crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
+			//const int crashedLineIdx = surface.collisionWithSurfaceVertLines(shuttle.getPosition(), crashedInLandingArea);
+
+			int crashedLineIdx;
+			if (surface.getLinesCount() >= 19) {
+				crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
+			}
+			else {
+				crashedLineIdx = surface.collisionWithSurfaceVertLines(shuttle.getPosition(), crashedInLandingArea);
+			}
 
 			if (INVALID_ID != crashedLineIdx) {
 				setFlag(CRASHED_FLAG);
@@ -1371,7 +1427,7 @@ public:
 	GeneticPopulation();
 	~GeneticPopulation();
 
-	Surface getSurface() const {
+	const Surface* getSurface() const {
 		return surface;
 	}
 
@@ -1387,7 +1443,7 @@ public:
 		return bestChromosome;
 	}
 
-	void setSurface(const Surface& surface) { this->surface = surface; }
+	void setSurface(const Surface& surface) { this->surface = &surface; }
 
 	/// Reserve memory for 2 populations
 	/// All chromosomes for all populations will use one indentical initial shuttle and modified it when simulating it
@@ -1487,7 +1543,7 @@ private:
 	/// but I think map of floats and ints shouldn't be the bottle neck of the program
 	ChromEvalIdxMap chromEvalIdxPairs;
 
-	Surface surface;
+	const Surface* surface;
 
 	int populationId; /// For visual debug purposes
 	float evaluationSum; /// Sum of all evaluations
@@ -1501,7 +1557,7 @@ private:
 //*************************************************************************************************************
 
 GeneticPopulation::GeneticPopulation() :
-	surface(),
+	surface(nullptr),
 	populationId(0)
 #ifdef SVG
 	, solutionChromIdx(INVALID_ID)
@@ -1547,15 +1603,15 @@ bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 
 		if (chromosome.hasFlag(COPIED_FLAG)) {
 			// Directly transfered parent
-			evaluationSum += chromosome.evaluate(surface); // Reset evaluation, because it was modified to fit the roullete wheel
+			evaluationSum += chromosome.evaluate(*surface); // Reset evaluation, because it was modified to fit the roullete wheel
 			chromosome.unsetFlag(COPIED_FLAG); // Do not consider chromosome copied anymore
 			continue;
 		}
 
 		int currentLastgene = 0;
-		chromosome.simulate(surface, foundResChromosome, currentLastgene);
+		chromosome.simulate(*surface, foundResChromosome, currentLastgene);
 
-		const float value = chromosome.evaluate(surface);
+		const float value = chromosome.evaluate(*surface);
 		evaluationSum += value;
 
 		if (foundResChromosome) {
@@ -1564,6 +1620,7 @@ bool GeneticPopulation::simulate(int& solutionChromIdx, int& lastGene) {
 			this->solutionChromIdx = solutionChromIdx;
 #endif
 			if (bestChromosome.getShuttle().getFuel() < chromosome.getShuttle().getFuel()) {
+				//cerr << "BETTER FOUND" << endl;
 				bestChromosome = chromosome;
 				lastGene = currentLastgene;
 			}
@@ -2105,8 +2162,11 @@ void Game::turnBegin() {
 	const chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 	const chrono::steady_clock::time_point loopEnd = start + chrono::milliseconds{ timeLimit };
 
+#ifdef REDIRECT_CIN_FROM_FILE
+	while (/*!answerFound &&*/ geneticPopulation.getPopulationId() <= MAX_POPULATION) {
+#else
 	for (chrono::steady_clock::time_point now = start; now < loopEnd; now = std::chrono::steady_clock::now()) {
-	//while (/*!answerFound &&*/ geneticPopulation.getPopulationId() <= MAX_POPULATION) {
+#endif // REDIRECT_CIN_FROM_FILE
 		answerFound = geneticPopulation.simulate(solutionChromIdx, lastGene);
 
 //		if (answerFound) {
