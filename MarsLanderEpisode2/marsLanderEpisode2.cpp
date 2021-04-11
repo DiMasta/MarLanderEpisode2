@@ -1,4 +1,4 @@
-//#define REDIRECT_CIN_FROM_FILE
+#define REDIRECT_CIN_FROM_FILE
 //#define REDIRECT_COUT_TO_FILE
 //#define SIMULATION_OUTPUT
 //#define DEBUG_ONE_TURN
@@ -81,10 +81,10 @@ const string INPUT_FILE_NAME = "input.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
 
 const int CHROMOSOME_SIZE = 150;//300;
-const int POPULATION_SIZE = 120;//100;
+const int POPULATION_SIZE = 100;//100;
 const int MAX_POPULATION = 5000;//250;
 const float ELITISM_RATIO = 0.2f; // The perscentage of the best chromosomes to transfer directly to the next population, unchanged, after other operators are done!
-const float PROBABILITY_OF_MUTATION = 0.03f; // The probability to mutate a gene
+const float PROBABILITY_OF_MUTATION = 0.05f; // The probability to mutate a gene
 const float PROBABILITY_OF_CROSSOVER = 1.f; // The probability to use the new child or transfer the parent directly
 
 const int INVALID_ROTATION_ANGLE = 100;
@@ -385,6 +385,7 @@ public:
 	~Surface();
 
 	int getLinesCount() const;
+	int getMaxHeight() const { return maxHeight; }
 
 	void setLinesCount(int linesCount) {
 		this->linesCount = linesCount;
@@ -418,6 +419,12 @@ public:
 		bool& landingZoneFound
 	);
 
+	void checkForMax(const int y) {
+		if (y > maxHeight) {
+			maxHeight = y;
+		}
+	}
+
 	float findDistanceToLandingZone(const Coords& from, int crashLineIdx) const;
 
 #ifdef SVG
@@ -429,6 +436,7 @@ private:
 	Line lines[MAX_LINES]; /// Native C++ array to hold the level linees
 	int linesCount; /// Lines in current level
 	int landingAreaLineIdx; /// Index of the landing area line
+	int maxHeight; /// The maximum height of lines
 };
 
 //*************************************************************************************************************
@@ -436,7 +444,8 @@ private:
 
 Surface::Surface() :
 	linesCount(0),
-	landingAreaLineIdx(INVALID_ID)
+	landingAreaLineIdx(INVALID_ID),
+	maxHeight(0)
 {
 
 }
@@ -1327,7 +1336,7 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 			//const int crashedLineIdx = surface.collisionWithSurfaceVertLines(shuttle.getPosition(), crashedInLandingArea);
 
 			int crashedLineIdx;
-			if (surface.getLinesCount() >= 19) {
+			if (surface.getMaxHeight() >= 2300) {
 				crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 			}
 			else {
@@ -2090,6 +2099,7 @@ void Game::getGameInput() {
 			cerr << landX << " " << landY << endl;
 #endif // OUTPUT_GAME_DATA
 
+		surface.checkForMax(landY);
 		if (landingZoneFound && 0.f == rightDistToLandingZone) {
 			landingZoneDirection = LZD_LEFT;
 			distToLandingZone = &rightDistToLandingZone;
