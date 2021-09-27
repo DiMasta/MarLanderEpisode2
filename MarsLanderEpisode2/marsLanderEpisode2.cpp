@@ -404,6 +404,7 @@ public:
 	);
 
 	float findDistanceToLandingZone(const Coords& from, int crashLineIdx) const;
+	float getMaxDistance() const;
 
 #ifdef SVG
 	string constructSVGData(const SVGManager& svgManager) const;
@@ -588,10 +589,25 @@ float Surface::findDistanceToLandingZone(const Coords& from, int crashLineIdx) c
 		}
 	}
 	else {
-		distTolandingZone = MAX_DISTANCE;
+		static const float maxDist = getMaxDistance();
+		//distTolandingZone = MAX_DISTANCE;
+		distTolandingZone = maxDist;
 	}
 
 	return distTolandingZone;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+float Surface::getMaxDistance() const {
+	float maxDist = 0.f;
+
+	for (int lineIdx = 0; lineIdx < linesCount; ++lineIdx) {
+		maxDist += lines[lineIdx].getLenght();
+	}
+
+	return maxDist;
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1231,7 +1247,9 @@ float Chromosome::evaluate(const Surface& surface) {
 		const float distance = surface.findDistanceToLandingZone(shuttle.getPosition(), getCrashedLineIdx());
 
 		// Calculate score from distance
-		evaluation = 100.f - (100.f * distance / MAX_DISTANCE);
+		static const float maxDist = surface.getMaxDistance();
+		//evaluation = 100.f - (100.f * distance / MAX_DISTANCE);
+		evaluation = 100.f - (100.f * distance / maxDist);
 
 		// High speeds are bad, they decrease maneuvrability
 		const float speedPen = 0.1f * max(currentSpeed - 100.f, 0.f);
