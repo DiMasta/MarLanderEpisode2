@@ -379,6 +379,7 @@ public:
 	~Surface();
 
 	int getLinesCount() const;
+	int getMaxLinesYCoord() const;
 
 	void setLinesCount(int linesCount) {
 		this->linesCount = linesCount;
@@ -406,6 +407,8 @@ public:
 	float findDistanceToLandingZone(const Coords& from, int crashLineIdx) const;
 	float getMaxDistance() const;
 
+	void updateMaxLinesYCoord(const int newYCoord);
+
 #ifdef SVG
 	string constructSVGData(const SVGManager& svgManager) const;
 #endif // SVG
@@ -414,6 +417,7 @@ private:
 	Line lines[MAX_LINES]; /// Native C++ array to hold the level linees
 	int linesCount; /// Lines in current level
 	int landingAreaLineIdx; /// Index of the landing area line
+	int maxLinesYCoord; /// Horizontal line above, which there is not need to test for collisions
 };
 
 //*************************************************************************************************************
@@ -421,7 +425,8 @@ private:
 
 Surface::Surface() :
 	linesCount(0),
-	landingAreaLineIdx(INVALID_ID)
+	landingAreaLineIdx(INVALID_ID),
+	maxLinesYCoord(0)
 {
 
 }
@@ -438,6 +443,13 @@ Surface::~Surface() {
 
 int Surface::getLinesCount() const {
 	return linesCount;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+int Surface::getMaxLinesYCoord() const {
+	return maxLinesYCoord;
 }
 
 //*************************************************************************************************************
@@ -608,6 +620,13 @@ float Surface::getMaxDistance() const {
 	}
 
 	return maxDist;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Surface::updateMaxLinesYCoord(const int newYCoord) {
+	maxLinesYCoord = std::max(maxLinesYCoord, newYCoord);
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1320,7 +1339,8 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 		path.push_back(shuttle.getPosition());
 #endif // SVG
 
-		if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
+		//if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
+		if (shuttle.getPosition().getYCoord() <= surface.getMaxLinesYCoord()) {
 			bool crashedInLandingArea = false;
 			const int crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 
@@ -2071,8 +2091,10 @@ void Game::getGameInput() {
 		cin >> landX >> landY; cin.ignore();
 
 #ifdef OUTPUT_GAME_DATA
-			cerr << landX << " " << landY << endl;
+		cerr << landX << " " << landY << endl;
 #endif // OUTPUT_GAME_DATA
+
+		surface.updateMaxLinesYCoord(landY);
 
 		if (landingZoneFound && 0.f == rightDistToLandingZone) {
 			landingZoneDirection = LZD_LEFT;
