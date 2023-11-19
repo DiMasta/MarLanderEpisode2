@@ -58,7 +58,7 @@ const int UNSIGNED_BITS_COUNT = sizeof(unsigned) * 8;
 
 static constexpr long long FIRST_TURN_MS = 1'000;
 static constexpr long long TURN_MS = 100;
-static constexpr long long FIRST_TURN_BIAS_MS = 215;
+static constexpr long long FIRST_TURN_BIAS_MS = 3;
 static constexpr long long BIAS_MS = 3;
 
 const float PI = 3.14159265f;
@@ -487,8 +487,11 @@ public:
 		bool& crashedInLandingArea
 	) const;
 
-	/// Check if the given point is inside the polygon for the surface
+	/// Check if the given point is inside the polygon for the surface, using the precomputed bitmask
 	bool collisionWithSurface(const Coords& point) const;
+
+	/// Check if the given point is inside the polygon for the surface
+	bool collisionWithSurfacePolygon(const Coords& point) const;
 
 	void addLine(
 		const Coords& point0,
@@ -613,6 +616,21 @@ bool Surface::collisionWithSurface(const Coords& point) const {
 
 	if (xCoord >= 0 && xCoord < MAP_WIDTH && yCoord >= 0 && yCoord < MAP_HEIGHT) {
 		collision = surfaceBitMask.isPixelBelowSurface(xCoord, yCoord);
+	}
+
+	return collision;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Surface::collisionWithSurfacePolygon(const Coords& point) const {
+	bool collision{ true };
+	const int xCoord{ static_cast<int>(point.getXCoord()) };
+	const int yCoord{ static_cast<int>(point.getYCoord()) };
+
+	if (xCoord >= 0 && xCoord < MAP_WIDTH && yCoord >= 0 && yCoord < MAP_HEIGHT) {
+		collision = surfacePolygon.pointInside(point.getXCoord(), point.getYCoord());
 	}
 
 	return collision;
@@ -1138,6 +1156,10 @@ public:
 		return evaluation;
 	}
 
+	int getBadGeneIdx() const {
+		return badGeneIdx;
+	}
+
 	unsigned int getFlags() const {
 		return flags;
 	}
@@ -1206,6 +1228,7 @@ private:
 	float evaluation; /// Maybe I could work with integer evaluation !? experiment
 
 	Gene chromosome[CHROMOSOME_SIZE];
+	int badGeneIdx = INVALID_ID; /// On which gene the crash occurred
 
 	unsigned int flags; /// Stored chromosome properties
 
@@ -1249,6 +1272,7 @@ Chromosome& Chromosome::operator=(const Chromosome& rhs) {
 	this->shuttle = rhs.shuttle;
 	this->evaluation = rhs.evaluation;
 	this->flags = rhs.flags;
+	this->badGeneIdx = rhs.badGeneIdx;
 
 	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
 		this->chromosome[geneIdx] = rhs.chromosome[geneIdx];
@@ -1535,7 +1559,8 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 
 		//if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
 		//if (shuttle.getPosition().getYCoord() <= surface.getMaxLinesYCoord()) {
-		if (surface.collisionWithSurface(shuttle.getPosition())) {
+		//if (surface.collisionWithSurface(shuttle.getPosition())) {
+		if (shuttle.getPosition().getYCoord() <= surface.getMaxLinesYCoord() && surface.collisionWithSurfacePolygon(shuttle.getPosition())) {
 			bool crashedInLandingArea = false;
 			const int crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 
@@ -1561,6 +1586,7 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 					}
 				}
 
+				badGeneIdx = geneIdx;
 				break;
 			}
 		}
@@ -1573,7 +1599,8 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 //*************************************************************************************************************
 
 void Chromosome::mutate() {
-	for (Gene& gene : chromosome) {
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE && geneIdx <= badGeneIdx; ++geneIdx) {
+		Gene& gene{ chromosome[geneIdx]};
 		const float r = Math::randomFloatBetween0and1();
 
 		if (r < PROBABILITY_OF_MUTATION) {
@@ -1900,8 +1927,9 @@ void GeneticPopulation::crossover(int parent0Idx, int parent1Idx, int childrenCo
 
 	const Chromosome& parent0 = population[parent0Idx];
 	const Chromosome& parent1 = population[parent1Idx];
+	const int badGeneIdx = std::max(parent0.getBadGeneIdx(), parent1.getBadGeneIdx());
 
-	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE; ++geneIdx) {
+	for (int geneIdx = 0; geneIdx < CHROMOSOME_SIZE && geneIdx <= badGeneIdx; ++geneIdx) {
 		const Gene& parent0Gene = parent0.getGene(geneIdx);
 		const Gene& parent1Gene = parent1.getGene(geneIdx);
 
@@ -2308,7 +2336,7 @@ void Game::getGameInput() {
 		point0 = point1;
 	}
 	surface.addPolygonVert({ static_cast<float>(MAP_WIDTH - 1), 0.f });
-	surface.fillBitMask();
+	//surface.fillBitMask();
 	//surface.writeBitMaskP6PPM();
 }
 
