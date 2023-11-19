@@ -54,6 +54,7 @@ const int ZERO_CHAR = '0';
 const int DIRECTIONS_COUNT = 8;
 const int RIGHT_ANGLE = 90;
 const int DOUBLE_RIGHT_ANGLE = 2 * RIGHT_ANGLE;
+const int UNSIGNED_BITS_COUNT = sizeof(unsigned) * 8;
 
 static constexpr long long FIRST_TURN_MS = 1'000;
 static constexpr long long TURN_MS = 100;
@@ -379,6 +380,89 @@ Line::~Line() {
 //-------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
+/// BitMask holding bits for each pixel of the whole 2D game filed,
+/// if the bit is 0 the pixel is above surface, if the bit is 1 the pixel is on the surface or below it
+class SurfaceBitMask {
+public:
+	SurfaceBitMask();
+
+	/// Set the pixel of the bitmask with the given coordinates to 1
+	void setPixel(const int xCoord, const int yCoord);
+
+	/// Check if the given pixel is below the game surface
+	bool isPixelBelowSurface(const int xCoord, const int yCoord) const;
+
+private:
+	std::vector<unsigned> bitMask; ///< Each element holds sizeof(unsigned) bits for pixels [MAP_WIDTHxMAP_HEIGHT]
+};
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+SurfaceBitMask::SurfaceBitMask() {
+	const size_t bitMaskSize{ (MAP_WIDTH * MAP_HEIGHT + (UNSIGNED_BITS_COUNT - 1)) / UNSIGNED_BITS_COUNT };
+	bitMask.resize(bitMaskSize, 0);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void SurfaceBitMask::setPixel(const int xCoord, const int yCoord) {
+	int index = yCoord * MAP_WIDTH + xCoord;
+	int arrayIndex = index / UNSIGNED_BITS_COUNT;
+	int bitIndex = index % UNSIGNED_BITS_COUNT;
+	bitMask[arrayIndex] |= (1u << bitIndex);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool SurfaceBitMask::isPixelBelowSurface(const int xCoord, const int yCoord) const {
+	int index = yCoord * MAP_WIDTH + xCoord;
+	int arrayIndex = index / UNSIGNED_BITS_COUNT;
+	int bitIndex = index % UNSIGNED_BITS_COUNT;
+
+	return bitMask[arrayIndex] & (1u << bitIndex);
+}
+
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+
+/// Holds array of the surface points on clockwise order, including (0, 0) and (MAP_WIDTH, 0)
+struct Polygon {
+	/// Check if the given point is inside the Polygon
+	bool pointInside(const float xCoord, const float yCoord) const;
+
+	std::vector<Coords> vertices; ///< The polygon vertices
+};
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+bool Polygon::pointInside(const float xCoord, const float yCoord) const {
+	const int nvert{ static_cast<int>(vertices.size()) };
+	bool c = 0;
+	for (int i = 0, j = nvert - 1; i < nvert; j = i++) {
+		const float vertXI{ vertices[i].getXCoord() };
+		const float vertXJ{ vertices[j].getXCoord() };
+		const float vertYI{ vertices[i].getYCoord() };
+		const float vertYJ{ vertices[j].getYCoord() };
+
+		if (((vertYI > yCoord) != (vertYJ > yCoord)) &&
+			(xCoord < (vertXJ - vertXI) * (yCoord - vertYI) / (vertYJ - vertYI) + vertXI))
+			c = !c;
+	}
+
+	return c;
+}
+
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+
 class Surface {
 public:
 	Surface();
@@ -410,17 +494,28 @@ public:
 		bool& landingZoneFound
 	);
 
+	/// Concatenate the next vertex for the surface polygon
+	void addPolygonVert(const Coords& vert);
+
+	/// Fill information for each pixel of the game field if it's below the surface
+	void fillBitMask();
+
 	float findDistanceToLandingZone(const Coords& from, int crashLineIdx) const;
 	float getMaxDistance() const;
 
 	void updateMaxLinesYCoord(const int newYCoord);
+
+	// Output the bits data in the bit mask to ppm file for debugging
+	void writeBitMaskP6PPM() const;
 
 #ifdef SVG
 	string constructSVGData(const SVGManager& svgManager) const;
 #endif // SVG
 
 private:
-	Line lines[MAX_LINES]; /// Native C++ array to hold the level linees
+	SurfaceBitMask surfaceBitMask; /// All pixels marked if they are below the surface
+	Line lines[MAX_LINES]; /// Native C++ array to hold the level lines
+	Polygon surfacePolygon; /// Array of the surface points on clockwise order, including (0, 0) and (MAP_WIDTH, 0)
 	int linesCount; /// Lines in current level
 	int landingAreaLineIdx; /// Index of the landing area line
 	int maxLinesYCoord; /// Horizontal line above, which there is not need to test for collisions
@@ -523,6 +618,35 @@ void Surface::addLine(
 	}
 
 	lines[lineIdx] = line;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Surface::addPolygonVert(const Coords& vert) {
+	surfacePolygon.vertices.push_back(vert);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Surface::fillBitMask() {
+	bool lineFullyBelowSurfaceFound{ false };
+
+	// Start form the top of the bounding box, above it there is no intersection
+	for (int yCoord = maxLinesYCoord; yCoord >= 0; --yCoord) {
+		bool wholeLineBelow{ true };
+		for (int xCoord = 0; xCoord < MAP_WIDTH; ++xCoord) {
+			if (lineFullyBelowSurfaceFound || surfacePolygon.pointInside(static_cast<float>(xCoord), static_cast<float>(yCoord))) {
+				surfaceBitMask.setPixel(xCoord, yCoord);
+			}
+			else {
+				wholeLineBelow = false;
+			}
+		}
+
+		lineFullyBelowSurfaceFound = wholeLineBelow;
+	}
 }
 
 //*************************************************************************************************************
@@ -633,6 +757,45 @@ float Surface::getMaxDistance() const {
 
 void Surface::updateMaxLinesYCoord(const int newYCoord) {
 	maxLinesYCoord = std::max(maxLinesYCoord, newYCoord);
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
+void Surface::writeBitMaskP6PPM() const {
+	const std::string filename{ "C:/VLADO/CodinGame/MarLanderEpisode2/MarsLanderEpisode2/surface_bitmask.ppm" };
+	std::ofstream ppmFile(filename, std::ios::out | std::ios::binary);
+
+	if (!ppmFile.is_open()) {
+		std::cerr << "Error: Could not open file for writing: " << filename << std::endl;
+		return;
+	}
+
+	// Write the P6 PPM header
+	ppmFile << "P6\n";
+	ppmFile << MAP_WIDTH << " " << MAP_HEIGHT << "\n";
+	ppmFile << "255\n";
+
+	// Create a color buffer to store pixel colors
+	std::vector<unsigned char> colorBuffer(MAP_WIDTH * MAP_HEIGHT * 3, 0);
+
+	// Fill the color buffer based on whether the pixel is inside the polygon or not
+	for (int y = 0; y < MAP_HEIGHT; ++y) {
+		for (int x = 0; x < MAP_WIDTH; ++x) {
+			int index = (y * MAP_WIDTH + x) * 3;
+
+			unsigned char color = surfaceBitMask.isPixelBelowSurface(x, MAP_HEIGHT - 1 - y) ? 0 : 255;
+
+			// Set the color data in the buffer
+			colorBuffer[index] = color;     // Red
+			colorBuffer[index + 1] = color; // Green
+			colorBuffer[index + 2] = color; // Blue
+		}
+	}
+
+	// Write color buffer to the file
+	ppmFile.write(reinterpret_cast<char*>(&colorBuffer[0]), colorBuffer.size());
+	ppmFile.close();
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -2091,6 +2254,7 @@ void Game::getGameInput() {
 	bool landingZoneFound = false;
 	int landingZoneDirection = LZD_RIGHT;
 
+	surface.addPolygonVert({ 0.f, 0.f });
 	for (int i = 0; i < surfaceN; i++) {
 		int landX; // X coordinate of a surface point. (0 to 6999)
 		int landY; // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
@@ -2100,6 +2264,7 @@ void Game::getGameInput() {
 		cerr << landX << " " << landY << endl;
 #endif // OUTPUT_GAME_DATA
 
+		surface.addPolygonVert({ static_cast<float>(landX), static_cast<float>(landY) });
 		surface.updateMaxLinesYCoord(landY);
 
 		if (landingZoneFound && 0.f == rightDistToLandingZone) {
@@ -2120,6 +2285,9 @@ void Game::getGameInput() {
 
 		point0 = point1;
 	}
+	surface.addPolygonVert({ static_cast<float>(MAP_WIDTH - 1), 0.f });
+	surface.fillBitMask();
+	surface.writeBitMaskP6PPM();
 }
 
 //*************************************************************************************************************
