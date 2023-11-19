@@ -1,8 +1,21 @@
+//#define SVG
+#define REDIRECT_CIN_FROM_FILE
+//#define REDIRECT_COUT_TO_FILE
+//#define SIMULATION_OUTPUT
+//#define DEBUG_ONE_TURN
+//#define TIME_MEASURERMENT
+//#define USE_UNIFORM_RANDOM
+//#define OUTPUT_GAME_DATA
+
+#ifndef REDIRECT_CIN_FROM_FILE
+
 #pragma GCC optimize("O3","unroll-loops","omit-frame-pointer","inline") //Optimization flags
 #pragma GCC option("arch=native","tune=native","no-zero-upper") //Enable AVX
 #pragma GCC target("avx")  //Enable AVX
 #include <x86intrin.h> //AVX/SSE Extensions
 #include <bits/stdc++.h> //All main STD libraries
+
+#else
 
 #include <iostream>
 #include <string>
@@ -21,14 +34,7 @@
 #include <chrono>
 #include <iterator>
 
-//#define SVG
-//#define REDIRECT_CIN_FROM_FILE
-//#define REDIRECT_COUT_TO_FILE
-//#define SIMULATION_OUTPUT
-//#define DEBUG_ONE_TURN
-//#define TIME_MEASURERMENT
-//#define USE_UNIFORM_RANDOM
-#define OUTPUT_GAME_DATA
+#endif // REDIRECT_INPUT
 
 #ifdef SVG
 #include "SVGManager.h"
