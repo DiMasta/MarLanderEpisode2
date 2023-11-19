@@ -5,7 +5,7 @@
 //#define DEBUG_ONE_TURN
 //#define TIME_MEASURERMENT
 //#define USE_UNIFORM_RANDOM
-//#define OUTPUT_GAME_DATA
+#define OUTPUT_GAME_DATA
 
 #ifndef REDIRECT_CIN_FROM_FILE
 
@@ -58,6 +58,7 @@ const int UNSIGNED_BITS_COUNT = sizeof(unsigned) * 8;
 
 static constexpr long long FIRST_TURN_MS = 1'000;
 static constexpr long long TURN_MS = 100;
+static constexpr long long FIRST_TURN_BIAS_MS = 215;
 static constexpr long long BIAS_MS = 3;
 
 const float PI = 3.14159265f;
@@ -486,6 +487,9 @@ public:
 		bool& crashedInLandingArea
 	) const;
 
+	/// Check if the given point is inside the polygon for the surface
+	bool collisionWithSurface(const Coords& point) const;
+
 	void addLine(
 		const Coords& point0,
 		const Coords& point1,
@@ -602,6 +606,21 @@ int Surface::collisionWithSurface(
 //*************************************************************************************************************
 //*************************************************************************************************************
 
+bool Surface::collisionWithSurface(const Coords& point) const {
+	bool collision{ true };
+	const int xCoord{ static_cast<int>(point.getXCoord()) };
+	const int yCoord{ static_cast<int>(point.getYCoord()) };
+
+	if (xCoord >= 0 && xCoord < MAP_WIDTH && yCoord >= 0 && yCoord < MAP_HEIGHT) {
+		collision = surfaceBitMask.isPixelBelowSurface(xCoord, yCoord);
+	}
+
+	return collision;
+}
+
+//*************************************************************************************************************
+//*************************************************************************************************************
+
 void Surface::addLine(
 	const Coords& point0,
 	const Coords& point1,
@@ -631,6 +650,8 @@ void Surface::addPolygonVert(const Coords& vert) {
 //*************************************************************************************************************
 
 void Surface::fillBitMask() {
+	auto startTime = std::chrono::high_resolution_clock::now();
+
 	bool lineFullyBelowSurfaceFound{ false };
 
 	// Start form the top of the bounding box, above it there is no intersection
@@ -647,6 +668,10 @@ void Surface::fillBitMask() {
 
 		lineFullyBelowSurfaceFound = wholeLineBelow;
 	}
+
+	auto endTime = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+	std::cerr << "Time taken: " << duration.count() << " milliseconds" << std::endl;
 }
 
 //*************************************************************************************************************
@@ -1509,7 +1534,8 @@ void Chromosome::simulate(const Surface& surface, bool& goodForLanding, int& las
 #endif // SVG
 
 		//if (geneIdx > CHECK_FOR_CRASH_AFTER_GENE) {
-		if (shuttle.getPosition().getYCoord() <= surface.getMaxLinesYCoord()) {
+		//if (shuttle.getPosition().getYCoord() <= surface.getMaxLinesYCoord()) {
+		if (surface.collisionWithSurface(shuttle.getPosition())) {
 			bool crashedInLandingArea = false;
 			const int crashedLineIdx = surface.collisionWithSurface(previousShuttle.getPosition(), shuttle.getPosition(), crashedInLandingArea);
 
@@ -1606,10 +1632,6 @@ public:
 	GeneticPopulation();
 	~GeneticPopulation();
 
-	Surface getSurface() const {
-		return surface;
-	}
-
 	int getPopulationId() const {
 		return populationId;
 	}
@@ -1622,7 +1644,7 @@ public:
 		return bestChromosome;
 	}
 
-	void setSurface(const Surface& surface) { this->surface = surface; }
+	void setSurface(const Surface* surface) { this->surface = surface; }
 
 	/// Reserve memory for 2 populations
 	/// All chromosomes for all populations will use one indentical initial shuttle and modified it when simulating it
@@ -1722,7 +1744,7 @@ private:
 	/// but I think map of floats and ints shouldn't be the bottle neck of the program
 	ChromEvalIdxMap chromEvalIdxPairs;
 
-	Surface surface;
+	const Surface* surface = nullptr;
 
 	int populationId; /// For visual debug purposes
 	float evaluationSum; /// Sum of all evaluations
@@ -1782,15 +1804,15 @@ bool GeneticPopulation::simulate(const int turnIdx, int& lastGene) {
 
 		if (chromosome.hasFlag(COPIED_FLAG)) {
 			// Directly transfered parent
-			evaluationSum += chromosome.evaluate(surface); // Reset evaluation, because it was modified to fit the roullete wheel
+			evaluationSum += chromosome.evaluate(*surface); // Reset evaluation, because it was modified to fit the roullete wheel
 			chromosome.unsetFlag(COPIED_FLAG); // Do not consider chromosome copied anymore
 			continue;
 		}
 
 		int currentLastgene = 0;
-		chromosome.simulate(surface, foundResChromosome, currentLastgene);
+		chromosome.simulate(*surface, foundResChromosome, currentLastgene);
 
-		const float value = chromosome.evaluate(surface);
+		const float value = chromosome.evaluate(*surface);
 		evaluationSum += value;
 
 		if (foundResChromosome) {
@@ -2197,7 +2219,7 @@ void Game::initGame() {
 //*************************************************************************************************************
 
 void Game::gameBegin() {
-	geneticPopulation.setSurface(surface);
+	geneticPopulation.setSurface(&surface);
 
 #ifdef SVG
 	string surfaceSVGData = surface.constructSVGData(svgManager);
@@ -2287,7 +2309,7 @@ void Game::getGameInput() {
 	}
 	surface.addPolygonVert({ static_cast<float>(MAP_WIDTH - 1), 0.f });
 	surface.fillBitMask();
-	surface.writeBitMaskP6PPM();
+	//surface.writeBitMaskP6PPM();
 }
 
 //*************************************************************************************************************
@@ -2333,7 +2355,7 @@ void Game::turnBegin() {
 	geneticPopulation.init(shuttle);
 	geneticPopulation.initRandomPopulation();
 
-	long long timeLimit = FIRST_TURN_MS - BIAS_MS;
+	long long timeLimit = FIRST_TURN_MS - FIRST_TURN_BIAS_MS;
 	if (turnsCount > 0) {
 		timeLimit = TURN_MS - BIAS_MS;
 	}
@@ -2364,9 +2386,9 @@ void Game::turnBegin() {
 		);
 	}
 
-#ifndef OUTPUT_GAME_DATA
+//#ifndef OUTPUT_GAME_DATA
 	cerr << "Populations count: " << geneticPopulation.getPopulationId() << endl;
-#endif // OUTPUT_GAME_DATA
+//#endif // OUTPUT_GAME_DATA
 }
 
 //*************************************************************************************************************
